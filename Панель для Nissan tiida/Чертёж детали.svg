@@ -30,129 +30,130 @@
   </g>
 
   <!-- VIEW 1: FRONT VIEW (Вид спереди) - Scale 2x -->
-  <!-- Real: 290w (top), 285w (bottom), 25h. 2x Scale: 580w, 570w, 50h -->
-  <!-- Center is X=300, Y=25 local coordinates. Top spans 10 to 590, Bottom spans 15 to 585 -->
+  <!-- Real: 293w (top), 287w (bottom), 26h. 2x Scale: 586w, 574w, 52h -->
+  <!-- Center is X=300, Y=26 local coordinates. Top spans 7 to 593, Bottom spans 13 to 587 -->
   <g transform="translate(80, 240)">
     <text x="10" y="-35" font-size="14" font-weight="bold" fill="#000000">ВИД СПЕРЕДИ</text>
     
     <!-- Trapezoid Outline -->
-    <polygon points="10,0 590,0 585,50 15,50" fill="none" stroke="#000000" stroke-width="2"/>
+    <polygon points="7,0 593,0 587,52 13,52" fill="none" stroke="#000000" stroke-width="2"/>
     
     <!-- Hidden Lines for Side Clips (Dashed) -->
-    <!-- Centered vertically (Y=25px). Clip spans Y=13px to Y=37px (width 24px/12mm) -->
+    <!-- Centered vertically (Y=26px). Clip spans Z=16px to Z=36px (width 20px/10mm) -->
     <!-- Left side clip -->
-    <rect x="24.5" y="13" width="10" height="24" fill="none" stroke="#999999" stroke-width="1" stroke-dasharray="3,3" />
+    <rect x="22" y="16" width="10" height="20" fill="none" stroke="#999999" stroke-width="1" stroke-dasharray="3,3" />
     <!-- Right side clip -->
-    <rect x="565.5" y="13" width="10" height="24" fill="none" stroke="#999999" stroke-width="1" stroke-dasharray="3,3" />
+    <rect x="568" y="16" width="10" height="20" fill="none" stroke="#999999" stroke-width="1" stroke-dasharray="3,3" />
 
     <!-- Center Line -->
-    <line x1="300" y1="-10" x2="300" y2="60" stroke="#ff0000" stroke-width="0.8" stroke-dasharray="10,2,2,2" />
+    <line x1="300" y1="-10" x2="300" y2="62" stroke="#ff0000" stroke-width="0.8" stroke-dasharray="10,2,2,2" />
 
     <!-- Dimensions for Front View -->
-    <!-- Top Width: 290.0 -->
-    <line x1="10" y1="-5" x2="10" y2="-25" stroke="#0000ff" stroke-width="0.8" />
-    <line x1="590" y1="-5" x2="590" y2="-25" stroke="#0000ff" stroke-width="0.8" />
-    <line x1="20" y1="-20" x2="580" y2="-20" stroke="#0000ff" stroke-width="0.8" />
-    <polygon points="10,-20 20,-23 20,-17" fill="#0000ff" />
-    <polygon points="590,-20 580,-23 580,-17" fill="#0000ff" />
-    <text x="280" y="-25" font-size="11" fill="#0000ff" font-weight="bold">290.0</text>
+    <!-- Top Width: 293.0 -->
+    <line x1="7" y1="-5" x2="7" y2="-25" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="593" y1="-5" x2="593" y2="-25" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="17" y1="-20" x2="583" y2="-20" stroke="#0000ff" stroke-width="0.8" />
+    <polygon points="7,-20 17,-23 17,-17" fill="#0000ff" />
+    <polygon points="593,-20 583,-23 583,-17" fill="#0000ff" />
+    <text x="280" y="-25" font-size="11" fill="#0000ff" font-weight="bold">293.0</text>
 
-    <!-- Bottom Width: 285.0 -->
-    <line x1="15" y1="55" x2="15" y2="75" stroke="#0000ff" stroke-width="0.8" />
-    <line x1="585" y1="55" x2="585" y2="75" stroke="#0000ff" stroke-width="0.8" />
-    <line x1="25" y1="70" x2="575" y2="70" stroke="#0000ff" stroke-width="0.8" />
-    <polygon points="15,70 25,67 25,73" fill="#0000ff" />
-    <polygon points="585,70 575,67 575,73" fill="#0000ff" />
-    <text x="280" y="82" font-size="11" fill="#0000ff" font-weight="bold">285.0</text>
+    <!-- Bottom Width: 287.0 -->
+    <line x1="13" y1="57" x2="13" y2="77" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="587" y1="57" x2="587" y2="77" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="23" y1="72" x2="577" y2="72" stroke="#0000ff" stroke-width="0.8" />
+    <polygon points="13,72 23,69 23,75" fill="#0000ff" />
+    <polygon points="587,72 577,69 577,75" fill="#0000ff" />
+    <text x="280" y="84" font-size="11" fill="#0000ff" font-weight="bold">287.0</text>
 
-    <!-- Height: 25.0 -->
-    <line x1="600" y1="0" x2="620" y2="0" stroke="#0000ff" stroke-width="0.8" />
-    <line x1="600" y1="50" x2="620" y2="50" stroke="#0000ff" stroke-width="0.8" />
-    <line x1="615" y1="10" x2="615" y2="40" stroke="#0000ff" stroke-width="0.8" />
-    <polygon points="615,0 612,10 618,10" fill="#0000ff" />
-    <polygon points="615,50 612,40 618,40" fill="#0000ff" />
-    <text x="625" y="30" font-size="11" fill="#0000ff" font-weight="bold">25.0</text>
+    <!-- Height: 26.0 -->
+    <line x1="603" y1="0" x2="623" y2="0" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="603" y1="52" x2="623" y2="52" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="618" y1="10" x2="618" y2="42" stroke="#0000ff" stroke-width="0.8" />
+    <polygon points="618,0 615,10 621,10" fill="#0000ff" />
+    <polygon points="618,52 615,42 621,42" fill="#0000ff" />
+    <text x="628" y="31" font-size="11" fill="#0000ff" font-weight="bold">26.0</text>
 
-    <!-- Slant Side: 26.0 -->
-    <line x1="5" y1="10" x2="-10" y2="25" stroke="#0000ff" stroke-width="0.8" />
-    <text x="-26" y="20" font-size="10.5" fill="#0000ff" font-weight="bold">26.0</text>
+    <!-- Slant Side: 26.2 -->
+    <line x1="2" y1="10" x2="-13" y2="25" stroke="#0000ff" stroke-width="0.8" />
+    <text x="-28" y="20" font-size="10.5" fill="#0000ff" font-weight="bold">26.2</text>
   </g>
 
   <!-- VIEW 2: TOP VIEW (Вид сверху) - Scale 2x -->
-  <!-- Width: 580. Flat Panel. Clips extend UP (back faces negative Y) -->
+  <!-- Width: 586. Flat Panel. Clips extend UP (back faces Y=10) -->
   <g transform="translate(80, 110)">
     <text x="10" y="-25" font-size="14" font-weight="bold" fill="#000000">ВИД СВЕРХУ</text>
     
     <!-- Flat Panel Profile -->
-    <path d="M 10,15 L 590,15 L 590,11 L 10,11 Z" fill="none" stroke="#000000" stroke-width="2"/>
+    <path d="M 7,15 L 593,15 L 593,10 L 7,10 Z" fill="none" stroke="#000000" stroke-width="2"/>
     
-    <!-- Left Side Clip extending upward (backwards) from back face at Y=11 -->
-    <rect x="24.5" y="-11" width="10" height="22" fill="none" stroke="#000000" stroke-width="1.5" />
+    <!-- Left Side Clip extending upward (backwards) from back face at Y=10 -->
+    <rect x="22" y="-6" width="10" height="16" fill="none" stroke="#000000" stroke-width="1.5" />
     <!-- Tooth pointing to the left -->
-    <polygon points="24.5,3 14.5,-5 24.5,-11" fill="#000000" stroke="#000000" stroke-width="1"/>
+    <polygon points="22,0 12,-6 22,-6" fill="#000000" stroke="#000000" stroke-width="1"/>
     
-    <!-- Right Side Clip extending upward (backwards) from back face at Y=11 -->
-    <rect x="565.5" y="-11" width="10" height="22" fill="none" stroke="#000000" stroke-width="1.5" />
+    <!-- Right Side Clip extending upward (backwards) from back face at Y=10 -->
+    <rect x="568" y="-6" width="10" height="16" fill="none" stroke="#000000" stroke-width="1.5" />
     <!-- Tooth pointing to the right -->
-    <polygon points="575.5,3 585.5,-5 575.5,-11" fill="#000000" stroke="#000000" stroke-width="1"/>
+    <polygon points="578,0 588,-6 578,-6" fill="#000000" stroke="#000000" stroke-width="1"/>
 
     <!-- Center Line -->
     <line x1="300" y1="0" x2="300" y2="45" stroke="#ff0000" stroke-width="0.8" stroke-dasharray="10,2,2,2" />
 
     <!-- Dimensions for Top View -->
-    <!-- Thickness: 2.0 -->
-    <line x1="10" y1="11" x2="-10" y2="11" stroke="#0000ff" stroke-width="0.8" />
-    <line x1="10" y1="15" x2="-10" y2="15" stroke="#0000ff" stroke-width="0.8" />
-    <text x="-32" y="17" font-size="11" fill="#0000ff" font-weight="bold">2.0</text>
+    <!-- Thickness: 2.5 -->
+    <line x1="7" y1="10" x2="-13" y2="10" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="7" y1="15" x2="-13" y2="15" stroke="#0000ff" stroke-width="0.8" />
+    <text x="-35" y="17" font-size="11" fill="#0000ff" font-weight="bold">2.5</text>
   </g>
 
+  <!-- VIEW 3: DETAIL VIEW - CLIP (Деталь защелки) - Scale 4x -->
+  <!-- Real: 8.0 length (32px), 5.0 thickness (20px), 5.0 hook (20px), 5.0 flat (20px), 10.0 width (40px) -->
   <g transform="translate(240, 420)">
     <text x="0" y="-68" font-size="14" font-weight="bold" fill="#000000">ДЕТАЛЬ КЛИПСЫ</text>
     
-    <!-- Clip Profile (L-Shape Hook) rotated for side orientation -->
-    <path d="M 0,0 L 44,0 L 44,-20 L 32,-40 L 16,-20 L 0,-20 Z" fill="none" stroke="#000000" stroke-width="2.5" />
+    <!-- Clip Profile with inner base chamfer and tooth insertion ramp -->
+    <path d="M 10,0 L 18,0 L 10,-8 L 10,-32 L -30,-32 L -10,-20 L -10,0 Z" fill="none" stroke="#000000" stroke-width="2.5" />
     <!-- Panel attachment reference -->
-    <path d="M 0,10 L 0,-30" stroke="#666666" stroke-width="1.5" stroke-dasharray="4,2"/>
+    <line x1="-25" y1="0" x2="35" y2="0" stroke="#666666" stroke-width="1.5" stroke-dasharray="4,2"/>
     
     <!-- Dimensions for Clip -->
-    <!-- Base Length: 11.0 -->
-    <line x1="0" y1="5" x2="0" y2="20" stroke="#0000ff" stroke-width="0.8" />
-    <line x1="44" y1="5" x2="44" y2="20" stroke="#0000ff" stroke-width="0.8" />
-    <line x1="0" y1="15" x2="44" y2="15" stroke="#0000ff" stroke-width="0.8" />
-    <polygon points="0,15 8,12 8,18" fill="#0000ff" />
-    <polygon points="44,15 36,12 36,18" fill="#0000ff" />
-    <text x="14" y="27" font-size="11" fill="#0000ff" font-weight="bold">11.0</text>
+    <!-- Base Length: 8.0 -->
+    <line x1="22" y1="0" x2="22" y2="-32" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="10" y1="0" x2="25" y2="0" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="10" y1="-32" x2="25" y2="-32" stroke="#0000ff" stroke-width="0.8" />
+    <polygon points="22,0 19,-8 25,-8" fill="#0000ff" />
+    <polygon points="22,-32 19,-24 25,-24" fill="#0000ff" />
+    <text x="26" y="-12" font-size="11" fill="#0000ff" font-weight="bold">8.0</text>
+
+    <!-- Flat length: 5.0 -->
+    <line x1="-20" y1="0" x2="-20" y2="-20" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="-10" y1="0" x2="-23" y2="0" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="-10" y1="-20" x2="-23" y2="-20" stroke="#0000ff" stroke-width="0.8" />
+    <polygon points="-20,0 -23,-5 -17,-5" fill="#0000ff" />
+    <polygon points="-20,-20 -23,-15 -17,-15" fill="#0000ff" />
+    <text x="-38" y="-7" font-size="11" fill="#0000ff" font-weight="bold">5.0</text>
 
     <!-- Clip base thickness: 5.0 -->
-    <line x1="0" y1="-20" x2="-20" y2="-20" stroke="#0000ff" stroke-width="0.8" />
-    <line x1="0" y1="0" x2="-20" y2="0" stroke="#0000ff" stroke-width="0.8" />
-    <line x1="-15" y1="-5" x2="-15" y2="-15" stroke="#0000ff" stroke-width="0.8" />
-    <polygon points="-15,-20 -18,-14 -12,-14" fill="#0000ff" />
-    <polygon points="-15,0 -18,-6 -12,-6" fill="#0000ff" />
-    <text x="-45" y="-5" font-size="11" fill="#0000ff" font-weight="bold">5.0</text>
-
-    <!-- Flat length: 4.0 -->
-    <line x1="0" y1="-20" x2="0" y2="-55" stroke="#0000ff" stroke-width="0.8" stroke-dasharray="2,2" />
-    <line x1="16" y1="-20" x2="16" y2="-43" stroke="#0000ff" stroke-width="0.8" />
-    <line x1="0" y1="-38" x2="16" y2="-38" stroke="#0000ff" stroke-width="0.8" />
-    <polygon points="0,-38 6,-41 6,-35" fill="#0000ff" />
-    <polygon points="16,-38 10,-41 10,-35" fill="#0000ff" />
-    <text x="4" y="-43" font-size="11" fill="#0000ff" font-weight="bold">4.0</text>
-
-    <!-- Peak Location: 8.0 -->
-    <line x1="32" y1="-40" x2="32" y2="-55" stroke="#0000ff" stroke-width="0.8" stroke-dasharray="2,2" />
-    <line x1="0" y1="-50" x2="32" y2="-50" stroke="#0000ff" stroke-width="0.8" />
-    <polygon points="0,-50 6,-53 6,-47" fill="#0000ff" />
-    <polygon points="32,-50 26,-53 26,-47" fill="#0000ff" />
-    <text x="12" y="-55" font-size="11" fill="#0000ff" font-weight="bold">8.0</text>
+    <line x1="-10" y1="0" x2="-10" y2="15" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="10" y1="0" x2="10" y2="15" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="-10" y1="10" x2="10" y2="10" stroke="#0000ff" stroke-width="0.8" />
+    <polygon points="-10,10 -2,7 -2,13" fill="#0000ff" />
+    <polygon points="10,10 2,7 2,13" fill="#0000ff" />
+    <text x="-10" y="25" font-size="11" fill="#0000ff" font-weight="bold">5.0 (ОСНОВАНИЕ)</text>
 
     <!-- Hook height: 5.0 -->
-    <line x1="32" y1="-20" x2="52" y2="-20" stroke="#0000ff" stroke-width="0.8" />
-    <line x1="32" y1="-40" x2="52" y2="-40" stroke="#0000ff" stroke-width="0.8" />
-    <line x1="47" y1="-37" x2="47" y2="-23" stroke="#0000ff" stroke-width="0.8" />
-    <polygon points="47,-40 44,-34 50,-34" fill="#0000ff" />
-    <polygon points="47,-20 44,-26 50,-26" fill="#0000ff" />
-    <text x="55" y="-27" font-size="11" fill="#0000ff" font-weight="bold">5.0</text>
+    <line x1="-10" y1="-20" x2="-10" y2="-45" stroke="#0000ff" stroke-width="0.8" stroke-dasharray="2,2" />
+    <line x1="-30" y1="-32" x2="-30" y2="-45" stroke="#0000ff" stroke-width="0.8" stroke-dasharray="2,2" />
+    <line x1="-10" y1="-40" x2="-30" y2="-40" stroke="#0000ff" stroke-width="0.8" />
+    <polygon points="-10,-40 -18,-43 -18,-37" fill="#0000ff" />
+    <polygon points="-30,-40 -22,-43 -22,-37" fill="#0000ff" />
+    <text x="-24" y="-45" font-size="11" fill="#0000ff" font-weight="bold">5.0</text>
+
+    <!-- Chamfer reinforcement width: 2.0 -->
+    <line x1="10" y1="0" x2="10" y2="-15" stroke="#0000ff" stroke-width="0.8" stroke-dasharray="2,2" />
+    <line x1="15" y1="0" x2="15" y2="-8" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="10" y1="-5" x2="15" y2="-5" stroke="#0000ff" stroke-width="0.8" />
+    <text x="17" y="-3" font-size="10" fill="#0000ff" font-weight="bold">2.0</text>
   </g>
   
   <!-- Technical Annotations -->
