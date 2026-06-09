@@ -128,16 +128,41 @@ def make_female_cutter_face(mid: FreeCAD.Vector, alpha_deg: float, config: Honey
 
 
 def make_reinforcement_face(mid: FreeCAD.Vector, alpha_deg: float, config: HoneycombConfig) -> Part.Face:
-    return make_centered_trapezoid_face(
-        mid,
-        alpha_deg,
-        config.reinforcement_v1,
-        config.reinforcement_v2,
-        config.reinforcement_w1,
-        config.reinforcement_w2,
-        config.reinforcement_root_radius,
-        config.reinforcement_tip_radius,
-    )
+    alpha = math.radians(alpha_deg)
+    normal = FreeCAD.Vector(math.cos(alpha), math.sin(alpha), 0)
+    tangent = FreeCAD.Vector(-math.sin(alpha), math.cos(alpha), 0)
+
+    p1 = mid - tangent * (config.reinforcement_w1 / 2.0) + normal * config.reinforcement_v1
+    p2 = mid - tangent * (config.reinforcement_w2 / 2.0) + normal * config.reinforcement_v2
+    p3 = mid + tangent * (config.reinforcement_w2 / 2.0) + normal * config.reinforcement_v2
+    p4 = mid + tangent * (config.reinforcement_w1 / 2.0) + normal * config.reinforcement_v1
+
+    base_control = max(config.reinforcement_root_radius * 1.5, (config.reinforcement_w1 - config.reinforcement_w2) * 0.3)
+    tip_control = max(config.reinforcement_tip_radius + 2.0, (config.reinforcement_w1 - config.reinforcement_w2) * 0.15)
+
+    left_curve = Part.BezierCurve()
+    left_curve.setPoles([
+        p1,
+        p1 + tangent * base_control,
+        p2 - tangent * tip_control,
+        p2,
+    ])
+
+    right_curve = Part.BezierCurve()
+    right_curve.setPoles([
+        p3,
+        p3 + tangent * tip_control,
+        p4 + tangent * base_control,
+        p4,
+    ])
+
+    edges = [
+        Part.makeLine(p4, p1),
+        left_curve.toShape(),
+        Part.makeLine(p2, p3),
+        right_curve.toShape(),
+    ]
+    return Part.Face(Part.Wire(edges))
 
 
 def make_filleted_hex_wire(radius: float, y_pos: float, corner_radius: float) -> Part.Wire:
@@ -187,24 +212,64 @@ def _collect_end_edges_for_fillet(
         if not (
             all(abs(point.z) < 0.01 for point in points)
             or all(abs(point.z - cell_len) < 0.01 for point in points)
+    return end_edges
+
+
+def _collect_longitudinal_edges(solid: Part.Shape, cell_len: float) -> List[Part.Shape]:
+    longitudinal_edges: List[Part.Shape] = []
+    for edge in solid.Edges:
+        p1 = edge.Vertex1.Point
+        p2 = edge.Vertex2.Point
+        if abs(p1.z - p2.z) < cell_len - 0.01:
+            continue
+        if not (
+            (abs(p1.z) < 0.01 and abs(p2.z - cell_len) < 0.01)
+            or (abs(p2.z) < 0.01 and abs(p1.z - cell_len) < 0.01)
         ):
             continue
+        if FreeCAD.Vector(p1.x - p2.x, p1.y - p2.y, 0).Length > 0.01:
+            continue
+        longitudinal_edges.append(edge)
+    return longitudinal_edges
 
-        v1_xy = FreeCAD.Vector(edge.Vertex1.Point.x, edge.Vertex1.Point.y, 0)
-        v2_xy = FreeCAD.Vector(edge.Vertex2.Point.x, edge.Vertex2.Point.y, 0)
 
-        matched = False
-        for source_edge in list(outer_edges) + list(inner_edges):
-            d1_f = (v1_xy - source_edge.Vertex1.Point).Length
-            d2_f = (v2_xy - source_edge.Vertex2.Point).Length
-            d1_r = (v1_xy - source_edge.Vertex2.Point).Length
-            d2_r = (v2_xy - source_edge.Vertex1.Point).Length
-            if (d1_f < 0.01 and d2_f < 0.01) or (d1_r < 0.01 and d2_r < 0.01):
-                matched = True
-                break
-        if matched:
-            end_edges.append(edge)
-    return end_edges
+def _collect_face_zone_longitudinal_edges(
+    solid: Part.Shape,
+    face_index: int,
+    vertices_out: Sequence[FreeCAD.Vector],
+    config: HoneycombConfig,
+    cell_len: float,
+    *,
+    u_min_abs: float,
+    u_max_abs: float,
+    v_min: float,
+    v_max: float,
+) -> List[Part.Shape]:
+    alpha_deg, _ = get_face_angle_and_dist(face_index, config)
+    alpha_rad = math.radians(alpha_deg)
+    tangent = FreeCAD.Vector(-math.sin(alpha_rad), math.cos(alpha_rad), 0)
+    normal = FreeCAD.Vector(math.cos(alpha_rad), math.sin(alpha_rad), 0)
+    face_mid = (vertices_out[face_index] + vertices_out[(face_index + 1) % 6]) * 0.5
+
+    matched_edges: List[Part.Shape] = []
+    for edge in solid.Edges:
+        p1 = edge.Vertex1.Point
+        p2 = edge.Vertex2.Point
+        if not (
+            (abs(p1.z) < 0.01 and abs(p2.z - cell_len) < 0.01)
+            or (abs(p2.z) < 0.01 and abs(p1.z - cell_len) < 0.01)
+        ):
+            continue
+        if FreeCAD.Vector(p1.x - p2.x, p1.y - p2.y, 0).Length > 0.01:
+            continue
+
+        midpoint = (p1 + p2) * 0.5
+        rel = midpoint - FreeCAD.Vector(face_mid.x, face_mid.y, midpoint.z)
+        u = abs(rel.dot(tangent))
+        v = rel.dot(normal)
+        if u_min_abs - 0.01 <= u <= u_max_abs + 0.01 and v_min - 0.01 <= v <= v_max + 0.01:
+            matched_edges.append(edge)
+    return matched_edges
 
 
 def _build_u_positions(max_u: float, row: int, spacing_u: float) -> List[float]:
@@ -284,6 +349,9 @@ def _build_perforation_cutters(
         face_half_lengths[index] = (current - nxt).Length / 2.0
 
     ridge_half_width = config.male_w1 / 2.0
+    reinforcement_pad_half_width = config.reinforcement_w1 / 2.0
+    perforation_half_span = config.perforation_radius + config.perforation_chamfer
+    joint_center_margin = config.perforation_joint_edge_min + perforation_half_span
     cutters_by_face: Dict[int, List[Part.Shape]] = {}
 
     for face_index in range(6):
@@ -299,16 +367,16 @@ def _build_perforation_cutters(
 
         wall_min_abs_u = 0.0
         if is_ridge:
-            wall_min_abs_u = config.male_w2 / 2.0 + config.perforation_joint_edge_min
+            wall_min_abs_u = config.male_w2 / 2.0 + joint_center_margin
         elif is_groove:
-            wall_min_abs_u = config.reinforcement_w2 / 2.0 + config.perforation_joint_edge_min
+            wall_min_abs_u = reinforcement_pad_half_width + joint_center_margin
 
-        ridge_max_abs_u = max(0.0, ridge_half_width - config.perforation_joint_edge_min)
+        ridge_max_abs_u = max(0.0, ridge_half_width - joint_center_margin)
         groove_min_abs_u = max(
             config.perforation_groove_clearance,
-            config.female_w_tip / 2.0 + config.perforation_joint_edge_min,
+            config.female_w_tip / 2.0 + joint_center_margin,
         )
-        groove_max_abs_u = max(0.0, config.reinforcement_w2 / 2.0 - config.perforation_joint_edge_min)
+        groove_max_abs_u = max(0.0, reinforcement_pad_half_width - joint_center_margin)
 
         for row in range(config.perforation_rows):
             z_pos = config.perforation_z_start + row * config.perforation_spacing_z
@@ -363,7 +431,7 @@ def _build_perforation_cutters(
                     tangent=tangent,
                     z_pos=z_pos,
                     rotation=rotation,
-                    y_inner=config.reinforcement_v2,
+                    y_inner=config.reinforcement_v1,
                     y_outer=0.0,
                     config=config,
                 )
@@ -448,6 +516,25 @@ def create_honeycomb_cell_shape(
         female_face = make_female_cutter_face(face_mid, alpha_deg, cfg)
         female_solid = female_face.extrude(FreeCAD.Vector(0, 0, cfg.cell_len))
         cell_solid = cell_solid.cut(female_solid).removeSplitter()
+
+    if cfg.reinforcement_edge_fillet > 0.0:
+        reinforcement_edges: List[Part.Shape] = []
+        for face_index in (2, 3):
+            reinforcement_edges.extend(
+                _collect_face_zone_longitudinal_edges(
+                    cell_solid,
+                    face_index,
+                    vertices_out,
+                    cfg,
+                    cfg.cell_len,
+                    u_min_abs=cfg.female_w_base / 2.0,
+                    u_max_abs=cfg.reinforcement_w1 / 2.0,
+                    v_min=cfg.reinforcement_v2,
+                    v_max=0.0,
+                )
+            )
+        if reinforcement_edges:
+            cell_solid = cell_solid.makeFillet(cfg.reinforcement_edge_fillet, reinforcement_edges)
 
     report = HoneycombBuildReport()
     if enable_perforation:

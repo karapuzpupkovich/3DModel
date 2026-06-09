@@ -33,6 +33,7 @@ class HoneycombConfig:
     reinforcement_w2: float = 48.0
     reinforcement_root_radius: float = 3.0
     reinforcement_tip_radius: float = 0.0
+    reinforcement_edge_fillet: float = 1.2
 
     # Perforation.
     perforation_radius: float = 2.5
