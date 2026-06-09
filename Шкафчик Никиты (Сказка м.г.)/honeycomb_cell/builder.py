@@ -375,8 +375,6 @@ def _build_perforation_cutters(
             wall_min_abs_u = config.male_w2 / 2.0 + joint_center_margin
 
         ridge_max_abs_u = max(0.0, ridge_half_width - joint_center_margin)
-        groove_min_abs_u = config.perforation_groove_clearance
-
         for row in range(config.perforation_rows):
             z_pos = config.perforation_z_start + row * config.perforation_spacing_z
             u_positions = _build_u_positions(max_u, row, config.perforation_spacing_u)
@@ -390,7 +388,10 @@ def _build_perforation_cutters(
                 seen.add(rounded_u)
 
                 if is_groove:
-                    if abs(u) < groove_min_abs_u:
+                    R_p = config.perforation_radius + config.perforation_chamfer
+                    is_inside_groove = (abs(u) + R_p <= config.female_w_base / 2.0)
+                    is_outside_groove = (abs(u) - R_p >= config.female_w_tip / 2.0)
+                    if not (is_inside_groove or is_outside_groove):
                         continue
                     if abs(u) <= config.reinforcement_w1 / 2.0:
                         y_inner = config.reinforcement_v2
@@ -516,15 +517,6 @@ def create_honeycomb_cell_shape(
         )
         male_solid = male_face.extrude(FreeCAD.Vector(0, 0, cfg.cell_len))
 
-        start_box = Part.makeBox(100.0, 100.0, 100.0)
-        start_box.translate(FreeCAD.Vector(-50.0, -50.0, -100.0))
-        start_box.rotate(FreeCAD.Vector(0, 2.2, 0.0), FreeCAD.Vector(1, 0, 0), 45.0)
-
-        end_box = Part.makeBox(100.0, 100.0, 100.0)
-        end_box.translate(FreeCAD.Vector(-50.0, -50.0, 0.0))
-        end_box.rotate(FreeCAD.Vector(0, 2.2, cfg.cell_len), FreeCAD.Vector(1, 0, 0), -45.0)
-
-        male_solid = male_solid.cut(start_box).cut(end_box)
         male_solid.rotate(FreeCAD.Vector(0, 0, 0), FreeCAD.Vector(0, 0, 1), alpha_deg - 90.0)
         male_solid.translate(face_mid)
         cell_solid = cell_solid.fuse(male_solid).removeSplitter()
