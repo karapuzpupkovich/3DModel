@@ -7,8 +7,13 @@ if PROJECT_DIR not in sys.path:
 
 from honeycomb_cell.export_single_cell import main as _honeycomb_main
 
-_honeycomb_main()
-raise SystemExit
+try:
+    _honeycomb_main()
+except Exception as e:
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+sys.exit(0)
 
 import os
 import sys

@@ -52,6 +52,7 @@ def main() -> None:
     print(f"Saved STEP to: {step_path}")
     print(f"Saved STL to: {stl_path}")
     print("=" * 60)
+    sys.stdout.flush()
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ if CURRENT_DIR not in sys.path:
 from honeycomb_cell.cabinet_builder import main as _cabinet_main
 
 _cabinet_main()
-raise SystemExit
+sys.exit(0)
 
 import os
 import sys

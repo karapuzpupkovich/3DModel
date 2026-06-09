@@ -128,41 +128,16 @@ def make_female_cutter_face(mid: FreeCAD.Vector, alpha_deg: float, config: Honey
 
 
 def make_reinforcement_face(mid: FreeCAD.Vector, alpha_deg: float, config: HoneycombConfig) -> Part.Face:
-    alpha = math.radians(alpha_deg)
-    normal = FreeCAD.Vector(math.cos(alpha), math.sin(alpha), 0)
-    tangent = FreeCAD.Vector(-math.sin(alpha), math.cos(alpha), 0)
-
-    p1 = mid - tangent * (config.reinforcement_w1 / 2.0) + normal * config.reinforcement_v1
-    p2 = mid - tangent * (config.reinforcement_w2 / 2.0) + normal * config.reinforcement_v2
-    p3 = mid + tangent * (config.reinforcement_w2 / 2.0) + normal * config.reinforcement_v2
-    p4 = mid + tangent * (config.reinforcement_w1 / 2.0) + normal * config.reinforcement_v1
-
-    base_control = max(config.reinforcement_root_radius * 1.5, (config.reinforcement_w1 - config.reinforcement_w2) * 0.3)
-    tip_control = max(config.reinforcement_tip_radius + 2.0, (config.reinforcement_w1 - config.reinforcement_w2) * 0.15)
-
-    left_curve = Part.BezierCurve()
-    left_curve.setPoles([
-        p1,
-        p1 + tangent * base_control,
-        p2 - tangent * tip_control,
-        p2,
-    ])
-
-    right_curve = Part.BezierCurve()
-    right_curve.setPoles([
-        p3,
-        p3 + tangent * tip_control,
-        p4 + tangent * base_control,
-        p4,
-    ])
-
-    edges = [
-        Part.makeLine(p4, p1),
-        left_curve.toShape(),
-        Part.makeLine(p2, p3),
-        right_curve.toShape(),
-    ]
-    return Part.Face(Part.Wire(edges))
+    return make_centered_trapezoid_face(
+        mid,
+        alpha_deg,
+        config.reinforcement_v1,
+        config.reinforcement_v2,
+        config.reinforcement_w1,
+        config.reinforcement_w2,
+        config.reinforcement_root_radius,
+        config.reinforcement_tip_radius,
+    )
 
 
 def make_filleted_hex_wire(radius: float, y_pos: float, corner_radius: float) -> Part.Wire:
@@ -212,6 +187,35 @@ def _collect_end_edges_for_fillet(
         if not (
             all(abs(point.z) < 0.01 for point in points)
             or all(abs(point.z - cell_len) < 0.01 for point in points)
+        ):
+            continue
+
+        v1_xy = FreeCAD.Vector(edge.Vertex1.Point.x, edge.Vertex1.Point.y, 0)
+        v2_xy = FreeCAD.Vector(edge.Vertex2.Point.x, edge.Vertex2.Point.y, 0)
+
+        matched = False
+        for source_edge in list(outer_edges) + list(inner_edges):
+            d1_f = (v1_xy - source_edge.Vertex1.Point).Length
+            d2_f = (v2_xy - source_edge.Vertex2.Point).Length
+            d1_r = (v1_xy - source_edge.Vertex2.Point).Length
+            d2_r = (v2_xy - source_edge.Vertex1.Point).Length
+            if (d1_f < 0.01 and d2_f < 0.01) or (d1_r < 0.01 and d2_r < 0.01):
+                matched = True
+                break
+        if matched:
+            end_edges.append(edge)
+    return end_edges
+
+
+def _collect_all_end_edges(solid: Part.Shape, cell_len: float) -> List[Part.Shape]:
+    end_edges = []
+    for edge in solid.Edges:
+        p1 = edge.Vertex1.Point
+        p2 = edge.Vertex2.Point
+        if abs(p1.z) < 0.01 and abs(p2.z) < 0.01:
+            end_edges.append(edge)
+        elif abs(p1.z - cell_len) < 0.01 and abs(p2.z - cell_len) < 0.01:
+            end_edges.append(edge)
     return end_edges
 
 
@@ -255,9 +259,11 @@ def _collect_face_zone_longitudinal_edges(
     for edge in solid.Edges:
         p1 = edge.Vertex1.Point
         p2 = edge.Vertex2.Point
+        if abs(p1.z - p2.z) < cell_len - 5.0:
+            continue
         if not (
-            (abs(p1.z) < 0.01 and abs(p2.z - cell_len) < 0.01)
-            or (abs(p2.z) < 0.01 and abs(p1.z - cell_len) < 0.01)
+            (abs(p1.z) < 2.0 and abs(p2.z - cell_len) < 2.0)
+            or (abs(p2.z) < 2.0 and abs(p1.z - cell_len) < 2.0)
         ):
             continue
         if FreeCAD.Vector(p1.x - p2.x, p1.y - p2.y, 0).Length > 0.01:
@@ -349,7 +355,6 @@ def _build_perforation_cutters(
         face_half_lengths[index] = (current - nxt).Length / 2.0
 
     ridge_half_width = config.male_w1 / 2.0
-    reinforcement_pad_half_width = config.reinforcement_w1 / 2.0
     perforation_half_span = config.perforation_radius + config.perforation_chamfer
     joint_center_margin = config.perforation_joint_edge_min + perforation_half_span
     cutters_by_face: Dict[int, List[Part.Shape]] = {}
@@ -368,71 +373,52 @@ def _build_perforation_cutters(
         wall_min_abs_u = 0.0
         if is_ridge:
             wall_min_abs_u = config.male_w2 / 2.0 + joint_center_margin
-        elif is_groove:
-            wall_min_abs_u = reinforcement_pad_half_width + joint_center_margin
 
         ridge_max_abs_u = max(0.0, ridge_half_width - joint_center_margin)
-        groove_min_abs_u = max(
-            config.perforation_groove_clearance,
-            config.female_w_tip / 2.0 + joint_center_margin,
-        )
-        groove_max_abs_u = max(0.0, reinforcement_pad_half_width - joint_center_margin)
+        groove_min_abs_u = config.perforation_groove_clearance
 
         for row in range(config.perforation_rows):
             z_pos = config.perforation_z_start + row * config.perforation_spacing_z
+            u_positions = _build_u_positions(max_u, row, config.perforation_spacing_u)
+            seen = set()
+            for u in u_positions:
+                if abs(u) > max_u:
+                    continue
+                rounded_u = round(u, 4)
+                if rounded_u in seen:
+                    continue
+                seen.add(rounded_u)
 
-            wall_positions = _filter_u_positions(
-                max_u,
-                row,
-                config.perforation_spacing_u,
-                min_abs_u=wall_min_abs_u,
-            )
-            _append_perforation_cutters(
-                face_cutters,
-                wall_positions,
-                face_mid=face_mid,
-                tangent=tangent,
-                z_pos=z_pos,
-                rotation=rotation,
-                y_inner=-config.wall_t,
-                y_outer=0.0,
-                config=config,
-            )
+                if is_groove:
+                    if abs(u) < groove_min_abs_u:
+                        continue
+                    if abs(u) <= config.reinforcement_w1 / 2.0:
+                        y_inner = config.reinforcement_v2
+                    else:
+                        y_inner = -config.wall_t
+                    y_outer = 0.0
+                elif is_ridge:
+                    if abs(u) <= ridge_max_abs_u:
+                        y_inner = -config.wall_t
+                        y_outer = config.male_v2
+                    elif abs(u) >= wall_min_abs_u:
+                        y_inner = -config.wall_t
+                        y_outer = 0.0
+                    else:
+                        continue
+                else:
+                    y_inner = -config.wall_t
+                    y_outer = 0.0
 
-            if is_ridge and ridge_max_abs_u > 0.0:
-                ridge_positions = _filter_u_positions(
-                    ridge_max_abs_u,
-                    row,
-                    config.perforation_spacing_u,
-                )
                 _append_perforation_cutters(
                     face_cutters,
-                    ridge_positions,
+                    [u],
                     face_mid=face_mid,
                     tangent=tangent,
                     z_pos=z_pos,
                     rotation=rotation,
-                    y_inner=-config.wall_t,
-                    y_outer=config.male_v2,
-                    config=config,
-                )
-
-            if is_groove and groove_max_abs_u > groove_min_abs_u:
-                groove_positions = _filter_u_positions(
-                    groove_max_abs_u,
-                    row,
-                    config.perforation_spacing_u,
-                    min_abs_u=groove_min_abs_u,
-                )
-                _append_perforation_cutters(
-                    face_cutters,
-                    groove_positions,
-                    face_mid=face_mid,
-                    tangent=tangent,
-                    z_pos=z_pos,
-                    rotation=rotation,
-                    y_inner=config.reinforcement_v1,
-                    y_outer=0.0,
+                    y_inner=y_inner,
+                    y_outer=y_outer,
                     config=config,
                 )
 
@@ -454,69 +440,44 @@ def create_honeycomb_cell_shape(
     writer = log or _noop
     vertices_out = _build_outer_vertices(cfg)
 
-    writer("Stage 1/6: building shell")
+    writer("Stage 1/6: building shell with reinforcement pads integrated")
     outer_face = make_filleted_polygon(vertices_out, cfg.corner_radius)
     inner_face = outer_face.makeOffset2D(-cfg.wall_t)
-    cell_face = outer_face.cut(inner_face).removeSplitter()
+    
+    # Create reinforcement faces in 2D
+    reinf_faces = []
+    for face_index in (2, 3):
+        alpha_deg, _ = get_face_angle_and_dist(face_index, cfg)
+        face_mid = (vertices_out[face_index] + vertices_out[(face_index + 1) % 6]) * 0.5
+        rf = make_reinforcement_face(face_mid, alpha_deg, cfg)
+        reinf_faces.append(rf)
+    
+    # Cut reinforcement from inner face (void) to thicken the wall
+    inner_face_reinf = inner_face
+    for rf in reinf_faces:
+        inner_face_reinf = inner_face_reinf.cut(rf)
+    inner_face_reinf = inner_face_reinf.removeSplitter()
+    
+    # Final cell face
+    cell_face = outer_face.cut(inner_face_reinf).removeSplitter()
     cell_solid = cell_face.extrude(FreeCAD.Vector(0, 0, cfg.cell_len))
 
-    writer("Stage 2/6: filleting end edges")
+    writer("Stage 2/6: applying end and longitudinal fillets")
+    # Apply end fillets to the entire cell ends (before male/female joints to keep geometry clean)
     end_edges = _collect_end_edges_for_fillet(
         cell_solid,
         cell_face.Wires[0].Edges,
         cell_face.Wires[1].Edges,
         cfg.cell_len,
     )
-    cell_solid = cell_solid.makeFillet(cfg.end_fillet_r, end_edges)
+    if end_edges:
+        try:
+            cell_solid = cell_solid.makeFillet(cfg.end_fillet_r, end_edges)
+        except Exception as e:
+            writer(f"Error: failed to apply end fillets: {e}")
+            raise
 
-    writer("Stage 3/6: adding reinforcement pads")
-    for face_index in (2, 3):
-        alpha_deg, _ = get_face_angle_and_dist(face_index, cfg)
-        face_mid = (vertices_out[face_index] + vertices_out[(face_index + 1) % 6]) * 0.5
-        reinforcement = make_reinforcement_face(face_mid, alpha_deg, cfg).extrude(
-            FreeCAD.Vector(0, 0, cfg.cell_len)
-        )
-        cell_solid = cell_solid.fuse(reinforcement).removeSplitter()
-
-    writer("Stage 4/6: adding male joints")
-    for face_index in (0, 5):
-        alpha_deg, _ = get_face_angle_and_dist(face_index, cfg)
-        face_mid = (vertices_out[face_index] + vertices_out[(face_index + 1) % 6]) * 0.5
-        male_face = make_centered_trapezoid_face(
-            FreeCAD.Vector(0, 0, 0),
-            90.0,
-            cfg.male_v1,
-            cfg.male_v2,
-            cfg.male_w1,
-            cfg.male_w2,
-            0.0,
-            cfg.male_tip_radius,
-        )
-        male_solid = male_face.extrude(FreeCAD.Vector(0, 0, cfg.cell_len))
-
-        start_box = Part.makeBox(100.0, 100.0, 100.0)
-        start_box.translate(FreeCAD.Vector(-50.0, -50.0, -100.0))
-        start_box.rotate(FreeCAD.Vector(0, 0, 0), FreeCAD.Vector(1, 0, 0), 45.0)
-        start_box.translate(FreeCAD.Vector(0, 0, cfg.end_fillet_r))
-
-        end_box = Part.makeBox(100.0, 100.0, 100.0)
-        end_box.translate(FreeCAD.Vector(-50.0, -50.0, 0.0))
-        end_box.rotate(FreeCAD.Vector(0, 0, 0), FreeCAD.Vector(1, 0, 0), -45.0)
-        end_box.translate(FreeCAD.Vector(0, 0, cfg.cell_len - cfg.end_fillet_r))
-
-        male_solid = male_solid.cut(start_box).cut(end_box)
-        male_solid.rotate(FreeCAD.Vector(0, 0, 0), FreeCAD.Vector(0, 0, 1), alpha_deg - 90.0)
-        male_solid.translate(face_mid)
-        cell_solid = cell_solid.fuse(male_solid).removeSplitter()
-
-    writer("Stage 5/6: cutting female grooves")
-    for face_index in (2, 3):
-        alpha_deg, _ = get_face_angle_and_dist(face_index, cfg)
-        face_mid = (vertices_out[face_index] + vertices_out[(face_index + 1) % 6]) * 0.5
-        female_face = make_female_cutter_face(face_mid, alpha_deg, cfg)
-        female_solid = female_face.extrude(FreeCAD.Vector(0, 0, cfg.cell_len))
-        cell_solid = cell_solid.cut(female_solid).removeSplitter()
-
+    # Apply longitudinal fillets to the reinforcement pad edges
     if cfg.reinforcement_edge_fillet > 0.0:
         reinforcement_edges: List[Part.Shape] = []
         for face_index in (2, 3):
@@ -534,7 +495,49 @@ def create_honeycomb_cell_shape(
                 )
             )
         if reinforcement_edges:
-            cell_solid = cell_solid.makeFillet(cfg.reinforcement_edge_fillet, reinforcement_edges)
+            try:
+                cell_solid = cell_solid.makeFillet(cfg.reinforcement_edge_fillet, reinforcement_edges)
+            except Exception as e:
+                writer(f"Warning: failed to apply longitudinal fillets: {e}")
+
+    writer("Stage 3/6: adding male joints")
+    for face_index in (0, 5):
+        alpha_deg, _ = get_face_angle_and_dist(face_index, cfg)
+        face_mid = (vertices_out[face_index] + vertices_out[(face_index + 1) % 6]) * 0.5
+        male_face = make_centered_trapezoid_face(
+            FreeCAD.Vector(0, 0, 0),
+            90.0,
+            cfg.male_v1,
+            cfg.male_v2,
+            cfg.male_w1,
+            cfg.male_w2,
+            0.0,
+            cfg.male_tip_radius,
+        )
+        male_solid = male_face.extrude(FreeCAD.Vector(0, 0, cfg.cell_len))
+
+        start_box = Part.makeBox(100.0, 100.0, 100.0)
+        start_box.translate(FreeCAD.Vector(-50.0, -50.0, -100.0))
+        start_box.rotate(FreeCAD.Vector(0, 2.2, 0.0), FreeCAD.Vector(1, 0, 0), 45.0)
+
+        end_box = Part.makeBox(100.0, 100.0, 100.0)
+        end_box.translate(FreeCAD.Vector(-50.0, -50.0, 0.0))
+        end_box.rotate(FreeCAD.Vector(0, 2.2, cfg.cell_len), FreeCAD.Vector(1, 0, 0), -45.0)
+
+        male_solid = male_solid.cut(start_box).cut(end_box)
+        male_solid.rotate(FreeCAD.Vector(0, 0, 0), FreeCAD.Vector(0, 0, 1), alpha_deg - 90.0)
+        male_solid.translate(face_mid)
+        cell_solid = cell_solid.fuse(male_solid).removeSplitter()
+
+    writer("Stage 4/6: cutting female grooves")
+    for face_index in (2, 3):
+        alpha_deg, _ = get_face_angle_and_dist(face_index, cfg)
+        face_mid = (vertices_out[face_index] + vertices_out[(face_index + 1) % 6]) * 0.5
+        female_face = make_female_cutter_face(face_mid, alpha_deg, cfg)
+        female_solid = female_face.extrude(FreeCAD.Vector(0, 0, cfg.cell_len))
+        cell_solid = cell_solid.cut(female_solid).removeSplitter()
+
+    writer("Stage 5/6: verifying shape integrity")
 
     report = HoneycombBuildReport()
     if enable_perforation:
