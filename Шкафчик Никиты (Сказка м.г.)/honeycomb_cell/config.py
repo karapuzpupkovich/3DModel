@@ -31,7 +31,8 @@ class HoneycombConfig:
     reinforcement_v2: float = -4.8
     reinforcement_w1: float = 58.0
     reinforcement_w2: float = 48.0
-    reinforcement_radius: float = 3.0
+    reinforcement_root_radius: float = 3.0
+    reinforcement_tip_radius: float = 0.0
 
     # Perforation.
     perforation_radius: float = 2.5
@@ -41,7 +42,8 @@ class HoneycombConfig:
     perforation_rows: int = 27
     perforation_z_start: float = 9.0
     perforation_edge_min: float = 7.5
-    perforation_groove_clearance: float = 20.0
+    perforation_joint_edge_min: float = 1.5
+    perforation_groove_clearance: float = 17.5
     perforation_chamfer: float = 0.4
     perforation_batch_size: int = 24
 

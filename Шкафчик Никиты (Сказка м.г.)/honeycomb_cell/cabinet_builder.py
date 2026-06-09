@@ -37,8 +37,17 @@ def add_panel(doc, name, length, width, height, x, y, z, color):
 
 def load_or_build_cell_shape(log=print):
     step_path = os.path.join(PROJECT_DIR, "honeycomb_cell", "output", "HoneycombCell.step")
+    source_paths = [
+        os.path.join(PROJECT_DIR, "honeycomb_cell", "builder.py"),
+        os.path.join(PROJECT_DIR, "honeycomb_cell", "config.py"),
+    ]
     if os.path.exists(step_path):
         try:
+            step_mtime = os.path.getmtime(step_path)
+            source_mtime = max(os.path.getmtime(path) for path in source_paths)
+            if step_mtime < source_mtime:
+                log("Exported STEP is stale, rebuilding cell geometry from source")
+                raise ValueError("stale exported STEP")
             shape = Part.Shape()
             shape.read(step_path)
             if shape.isValid():
@@ -46,7 +55,8 @@ def load_or_build_cell_shape(log=print):
                 return shape, HoneycombBuildReport(valid=True)
             log("Exported STEP is invalid, rebuilding cell geometry")
         except Exception as exc:
-            log(f"Failed to load exported cell: {exc}")
+            if str(exc) != "stale exported STEP":
+                log(f"Failed to load exported cell: {exc}")
             log("Rebuilding cell geometry from source")
     return create_honeycomb_cell_shape(DEFAULT_CONFIG, enable_perforation=True, log=log)
 

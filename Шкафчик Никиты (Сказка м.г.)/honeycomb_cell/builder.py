@@ -127,6 +127,19 @@ def make_female_cutter_face(mid: FreeCAD.Vector, alpha_deg: float, config: Honey
     return Part.Face(make_filleted_polygon_with_radii(vertices, radii))
 
 
+def make_reinforcement_face(mid: FreeCAD.Vector, alpha_deg: float, config: HoneycombConfig) -> Part.Face:
+    return make_centered_trapezoid_face(
+        mid,
+        alpha_deg,
+        config.reinforcement_v1,
+        config.reinforcement_v2,
+        config.reinforcement_w1,
+        config.reinforcement_w2,
+        config.reinforcement_root_radius,
+        config.reinforcement_tip_radius,
+    )
+
+
 def make_filleted_hex_wire(radius: float, y_pos: float, corner_radius: float) -> Part.Wire:
     points = []
     for index in range(6):
@@ -212,6 +225,52 @@ def _build_u_positions(max_u: float, row: int, spacing_u: float) -> List[float]:
     return values
 
 
+def _filter_u_positions(
+    max_u: float,
+    row: int,
+    spacing_u: float,
+    *,
+    min_abs_u: float = 0.0,
+) -> List[float]:
+    filtered: List[float] = []
+    seen = set()
+    for value in _build_u_positions(max_u, row, spacing_u):
+        if abs(value) + 1e-6 < min_abs_u:
+            continue
+        rounded = round(value, 4)
+        if rounded in seen:
+            continue
+        seen.add(rounded)
+        filtered.append(value)
+    return filtered
+
+
+def _append_perforation_cutters(
+    target: List[Part.Shape],
+    positions: Sequence[float],
+    *,
+    face_mid: FreeCAD.Vector,
+    tangent: FreeCAD.Vector,
+    z_pos: float,
+    rotation: float,
+    y_inner: float,
+    y_outer: float,
+    config: HoneycombConfig,
+) -> None:
+    for u in positions:
+        cutter = make_chamfered_hex_cutter(
+            config.perforation_radius,
+            config.perforation_corner_radius,
+            y_inner,
+            y_outer,
+            config.perforation_chamfer,
+        )
+        if abs(rotation) > 0.001:
+            cutter.rotate(FreeCAD.Vector(0, 0, 0), FreeCAD.Vector(0, 0, 1), rotation)
+        cutter.translate(tangent * u + face_mid + FreeCAD.Vector(0, 0, z_pos))
+        target.append(cutter)
+
+
 def _build_perforation_cutters(
     vertices_out: Sequence[FreeCAD.Vector],
     config: HoneycombConfig,
@@ -236,34 +295,78 @@ def _build_perforation_cutters(
         is_ridge = face_index in (0, 5)
         is_groove = face_index in (2, 3)
         face_cutters: List[Part.Shape] = []
+        rotation = alpha_deg - 90.0
+
+        wall_min_abs_u = 0.0
+        if is_ridge:
+            wall_min_abs_u = config.male_w2 / 2.0 + config.perforation_joint_edge_min
+        elif is_groove:
+            wall_min_abs_u = config.reinforcement_w2 / 2.0 + config.perforation_joint_edge_min
+
+        ridge_max_abs_u = max(0.0, ridge_half_width - config.perforation_joint_edge_min)
+        groove_min_abs_u = max(
+            config.perforation_groove_clearance,
+            config.female_w_tip / 2.0 + config.perforation_joint_edge_min,
+        )
+        groove_max_abs_u = max(0.0, config.reinforcement_w2 / 2.0 - config.perforation_joint_edge_min)
 
         for row in range(config.perforation_rows):
             z_pos = config.perforation_z_start + row * config.perforation_spacing_z
-            for u in _build_u_positions(max_u, row, config.perforation_spacing_u):
-                if abs(u) > max_u:
-                    continue
-                if is_groove and abs(u) < config.perforation_groove_clearance:
-                    continue
 
-                if is_ridge and abs(u) <= ridge_half_width:
-                    y_outer = config.male_v2
-                    y_inner = -config.wall_t
-                else:
-                    y_outer = 0.0
-                    y_inner = -config.wall_t
+            wall_positions = _filter_u_positions(
+                max_u,
+                row,
+                config.perforation_spacing_u,
+                min_abs_u=wall_min_abs_u,
+            )
+            _append_perforation_cutters(
+                face_cutters,
+                wall_positions,
+                face_mid=face_mid,
+                tangent=tangent,
+                z_pos=z_pos,
+                rotation=rotation,
+                y_inner=-config.wall_t,
+                y_outer=0.0,
+                config=config,
+            )
 
-                cutter = make_chamfered_hex_cutter(
-                    config.perforation_radius,
-                    config.perforation_corner_radius,
-                    y_inner,
-                    y_outer,
-                    config.perforation_chamfer,
+            if is_ridge and ridge_max_abs_u > 0.0:
+                ridge_positions = _filter_u_positions(
+                    ridge_max_abs_u,
+                    row,
+                    config.perforation_spacing_u,
                 )
-                rotation = alpha_deg - 90.0
-                if abs(rotation) > 0.001:
-                    cutter.rotate(FreeCAD.Vector(0, 0, 0), FreeCAD.Vector(0, 0, 1), rotation)
-                cutter.translate(tangent * u + face_mid + FreeCAD.Vector(0, 0, z_pos))
-                face_cutters.append(cutter)
+                _append_perforation_cutters(
+                    face_cutters,
+                    ridge_positions,
+                    face_mid=face_mid,
+                    tangent=tangent,
+                    z_pos=z_pos,
+                    rotation=rotation,
+                    y_inner=-config.wall_t,
+                    y_outer=config.male_v2,
+                    config=config,
+                )
+
+            if is_groove and groove_max_abs_u > groove_min_abs_u:
+                groove_positions = _filter_u_positions(
+                    groove_max_abs_u,
+                    row,
+                    config.perforation_spacing_u,
+                    min_abs_u=groove_min_abs_u,
+                )
+                _append_perforation_cutters(
+                    face_cutters,
+                    groove_positions,
+                    face_mid=face_mid,
+                    tangent=tangent,
+                    z_pos=z_pos,
+                    rotation=rotation,
+                    y_inner=config.reinforcement_v2,
+                    y_outer=0.0,
+                    config=config,
+                )
 
         cutters_by_face[face_index] = face_cutters
         report.holes_by_face[face_index] = len(face_cutters)
@@ -302,16 +405,9 @@ def create_honeycomb_cell_shape(
     for face_index in (2, 3):
         alpha_deg, _ = get_face_angle_and_dist(face_index, cfg)
         face_mid = (vertices_out[face_index] + vertices_out[(face_index + 1) % 6]) * 0.5
-        reinforcement = make_centered_trapezoid_face(
-            face_mid,
-            alpha_deg,
-            cfg.reinforcement_v1,
-            cfg.reinforcement_v2,
-            cfg.reinforcement_w1,
-            cfg.reinforcement_w2,
-            cfg.reinforcement_radius,
-            cfg.reinforcement_radius,
-        ).extrude(FreeCAD.Vector(0, 0, cfg.cell_len))
+        reinforcement = make_reinforcement_face(face_mid, alpha_deg, cfg).extrude(
+            FreeCAD.Vector(0, 0, cfg.cell_len)
+        )
         cell_solid = cell_solid.fuse(reinforcement).removeSplitter()
 
     writer("Stage 4/6: adding male joints")
