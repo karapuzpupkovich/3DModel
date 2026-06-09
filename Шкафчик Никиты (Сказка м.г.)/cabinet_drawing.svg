@@ -1,0 +1,213 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 800" width="100%" height="100%" style="background-color: #ffffff; font-family: 'Courier New', Courier, monospace;">
+  <!-- Grid Background for Technical Look -->
+  <defs>
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#f0f0f0" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#grid)" />
+
+  <!-- Drawing Border -->
+  <rect x="15" y="15" width="970" height="770" fill="none" stroke="#000000" stroke-width="2"/>
+  <rect x="20" y="20" width="960" height="760" fill="none" stroke="#000000" stroke-width="0.5"/>
+
+  <!-- TITLE BLOCK (Штамп чертежа) -->
+  <g transform="translate(680, 650)">
+    <rect width="290" height="120" fill="#ffffff" stroke="#000000" stroke-width="1.5"/>
+    <line x1="0" y1="35" x2="290" y2="35" stroke="#000000" stroke-width="1"/>
+    <line x1="0" y1="75" x2="290" y2="75" stroke="#000000" stroke-width="1"/>
+    <line x1="145" y1="35" x2="145" y2="120" stroke="#000000" stroke-width="1"/>
+    
+    <text x="10" y="22" font-size="13" font-weight="bold" fill="#000000">Шкафчик Никиты (Сказка)</text>
+    <text x="10" y="50" font-size="9" fill="#666666">РАЗРАБОТЧИК</text>
+    <text x="10" y="65" font-size="11" font-weight="bold" fill="#000000">Antigravity AI</text>
+    <text x="155" y="50" font-size="9" fill="#666666">ДАТА</text>
+    <text x="155" y="65" font-size="11" font-weight="bold" fill="#000000">2026-06-08</text>
+    <text x="10" y="92" font-size="9" fill="#666666">МАСШТАБ</text>
+    <text x="10" y="108" font-size="11" font-weight="bold" fill="#000000">1:2 (A3)</text>
+    <text x="155" y="92" font-size="9" fill="#666666">ТИП ДОК.</text>
+    <text x="155" y="108" font-size="11" font-weight="bold" fill="#000000">ЧЕРТЕЖ ШКАФЧИКА</text>
+  </g>
+
+  <!-- VIEW 1: FRONT VIEW (Вид спереди - закрытый) - Scale 0.5x -->
+  <!-- Real: 300w, 1295h. Legs 100h. Scale 0.5: 150w, 647.5h. Legs 50h. -->
+  <g transform="translate(60, 50)">
+    <text x="0" y="20" font-size="14" font-weight="bold" fill="#000000">ВИД СПЕРЕДИ (ЗАКРЫТЫЙ)</text>
+    
+    <!-- Cabinet Body -->
+    <rect x="0" y="40" width="150" height="647.5" fill="none" stroke="#000000" stroke-width="2"/>
+    
+    <!-- Legs -->
+    <rect x="15" y="687.5" width="20" height="50" fill="none" stroke="#000000" stroke-width="1.5"/>
+    <rect x="115" y="687.5" width="20" height="50" fill="none" stroke="#000000" stroke-width="1.5"/>
+    
+    <!-- Door -->
+    <rect x="1" y="41" width="148" height="645.5" fill="none" stroke="#000000" stroke-width="1.2"/>
+    
+    <!-- Photo Frame (100x150 real -> 50x75 px) -->
+    <rect x="35" y="150" width="50" height="75" fill="none" stroke="#008080" stroke-width="2"/>
+    <rect x="40" y="155" width="40" height="65" fill="#f0f0f0" stroke="#000000" stroke-width="0.5"/>
+    <text x="45" y="190" font-size="9" fill="#666666">Фото</text>
+    
+    <!-- Door Handle -->
+    <rect x="125" y="320" width="8" height="64" rx="4" fill="none" stroke="#000000" stroke-width="1.5"/>
+    
+    <!-- Dimensions -->
+    <!-- Total width: 300 -->
+    <line x1="0" y1="40" x2="0" y2="10" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="150" y1="40" x2="150" y2="10" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="10" y1="15" x2="140" y2="15" stroke="#0000ff" stroke-width="0.8" />
+    <polygon points="0,15 10,12 10,18" fill="#0000ff" />
+    <polygon points="150,15 140,12 140,18" fill="#0000ff" />
+    <text x="60" y="10" font-size="11" fill="#0000ff" font-weight="bold">300</text>
+
+    <!-- Total height: 1395 (body 1295 + legs 100) -->
+    <line x1="0" y1="40" x2="-30" y2="40" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="0" y1="737.5" x2="-30" y2="737.5" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="-25" y1="50" x2="-25" y2="727.5" stroke="#0000ff" stroke-width="0.8" />
+    <polygon points="-25,40 -28,50 -22,50" fill="#0000ff" />
+    <polygon points="-25,737.5 -28,727.5 -22,727.5" fill="#0000ff" />
+    <text x="-20" y="380" font-size="11" fill="#0000ff" font-weight="bold" transform="rotate(-90 -20 380)">1395</text>
+  </g>
+
+  <!-- VIEW 2: SECTION VIEW (Вид спереди в разрезе / без двери) -->
+  <!-- Scale 0.5x. X starts at 270. -->
+  <g transform="translate(290, 50)">
+    <text x="0" y="20" font-size="14" font-weight="bold" fill="#000000">ВИД В РАЗРЕЗЕ (БЕЗ ДВЕРИ)</text>
+    
+    <!-- Outer contour -->
+    <rect x="0" y="40" width="150" height="647.5" fill="none" stroke="#000000" stroke-width="2"/>
+    <!-- Legs -->
+    <rect x="15" y="687.5" width="20" height="50" fill="none" stroke="#000000" stroke-width="1.5"/>
+    <rect x="115" y="687.5" width="20" height="50" fill="none" stroke="#000000" stroke-width="1.5"/>
+
+    <!-- Left & Right walls (16 mm -> 8 px) -->
+    <line x1="8" y1="40" x2="8" y2="687.5" stroke="#000000" stroke-width="1" />
+    <line x1="142" y1="40" x2="142" y2="687.5" stroke="#000000" stroke-width="1" />
+    
+    <!-- Top & Bottom panels (16 mm -> 8 px) -->
+    <line x1="0" y1="48" x2="150" y2="48" stroke="#000000" stroke-width="1" />
+    <line x1="0" y1="679.5" x2="150" y2="679.5" stroke="#000000" stroke-width="1" />
+
+    <!-- Section 1 (Headwear): Y start = 48 (internal top). Height: 150 mm -> 75 px. -->
+    <!-- Shelf 1: Y = 48 + 75 = 123. Thickness 8 px -> 131 -->
+    <rect x="8" y="123" width="134" height="8" fill="#e0e0e0" stroke="#000000" stroke-width="1"/>
+    <text x="25" y="90" font-size="10" fill="#000000">ГОЛОВНЫЕ УБОРЫ</text>
+
+    <!-- Section 2 (Spare clothes): Height 115 mm -> 57.5 px. -->
+    <!-- Shelf 2: Y = 131 + 57.5 = 188.5. Thickness 8 px -> 196.5 -->
+    <rect x="8" y="188.5" width="134" height="8" fill="#e0e0e0" stroke="#000000" stroke-width="1"/>
+    <text x="25" y="165" font-size="10" fill="#000000">СМЕННАЯ ОДЕЖДА</text>
+
+    <!-- Section 3 (Outerwear): Height 750 mm -> 375 px. -->
+    <!-- Shelf 3: Y = 196.5 + 375 = 571.5. Thickness 8 px -> 579.5 -->
+    <rect x="8" y="571.5" width="134" height="8" fill="#e0e0e0" stroke="#000000" stroke-width="1"/>
+    <text x="25" y="380" font-size="10" fill="#000000">ВЕРХНЯЯ ОДЕЖДА</text>
+    
+    <!-- Coat Hook (visual representation) -->
+    <path d="M 12 230 Q 25 230 25 240 Q 25 250 15 250" fill="none" stroke="#555555" stroke-width="2"/>
+
+    <!-- Section 4 (Shoes): Height 200 mm -> 100 px. -->
+    <!-- Ends at Bottom Panel Top Y = 679.5. ($579.5 + 100 = 679.5$. Matches!) -->
+    <text x="25" y="640" font-size="10" fill="#000000">ОБУВЬ / САНДАЛИИ</text>
+
+    <!-- Internal dimensions and heights -->
+    <!-- Inner Width: 268 -->
+    <line x1="8" y1="450" x2="8" y2="490" stroke="#0000ff" stroke-width="0.8" stroke-dasharray="2,2" />
+    <line x1="142" y1="450" x2="142" y2="490" stroke="#0000ff" stroke-width="0.8" stroke-dasharray="2,2" />
+    <line x1="18" y1="470" x2="132" y2="470" stroke="#0000ff" stroke-width="0.8" />
+    <polygon points="8,470 18,467 18,473" fill="#0000ff" />
+    <polygon points="142,470 132,467 132,473" fill="#0000ff" />
+    <text x="65" y="465" font-size="10" fill="#0000ff" font-weight="bold">268</text>
+
+    <!-- Heights -->
+    <!-- Section 1 Height: 150 -->
+    <line x1="145" y1="48" x2="175" y2="48" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="145" y1="123" x2="175" y2="123" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="170" y1="58" x2="170" y2="113" stroke="#0000ff" stroke-width="0.8" />
+    <polygon points="170,48 167,58 173,58" fill="#0000ff" />
+    <polygon points="170,123 167,113 173,113" fill="#0000ff" />
+    <text x="175" y="90" font-size="10" fill="#0000ff" font-weight="bold">150</text>
+
+    <!-- Section 2 Height: 115 -->
+    <line x1="145" y1="188.5" x2="175" y2="188.5" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="170" y1="133" x2="170" y2="178.5" stroke="#0000ff" stroke-width="0.8" />
+    <polygon points="170,123 167,133 173,133" fill="#0000ff" />
+    <polygon points="170,188.5 167,178.5 173,178.5" fill="#0000ff" />
+    <text x="175" y="160" font-size="10" fill="#0000ff" font-weight="bold">115</text>
+
+    <!-- Section 3 Height: 750 -->
+    <line x1="145" y1="571.5" x2="175" y2="571.5" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="170" y1="206.5" x2="170" y2="561.5" stroke="#0000ff" stroke-width="0.8" />
+    <polygon points="170,196.5 167,206.5 173,206.5" fill="#0000ff" />
+    <polygon points="170,571.5 167,561.5 173,561.5" fill="#0000ff" />
+    <text x="175" y="389" font-size="10" fill="#0000ff" font-weight="bold">750</text>
+
+    <!-- Section 4 Height: 200 -->
+    <line x1="145" y1="679.5" x2="175" y2="679.5" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="170" y1="589.5" x2="170" y2="669.5" stroke="#0000ff" stroke-width="0.8" />
+    <polygon points="170,579.5 167,589.5 173,589.5" fill="#0000ff" />
+    <polygon points="170,679.5 167,669.5 173,669.5" fill="#0000ff" />
+    <text x="175" y="635" font-size="10" fill="#0000ff" font-weight="bold">200</text>
+
+    <!-- Shelf Thickness: 16 -->
+    <line x1="8" y1="127" x2="-35" y2="127" stroke="#0000ff" stroke-width="0.8" />
+    <text x="-65" y="131" font-size="10" fill="#0000ff" font-weight="bold">16</text>
+  </g>
+
+  <!-- VIEW 3: SIDE VIEW / SECTION (Вид сбоку в разрезе) -->
+  <!-- Scale 0.5x. Depth 350 mm -> 175 px. X starts at 520. -->
+  <g transform="translate(520, 50)">
+    <text x="0" y="20" font-size="14" font-weight="bold" fill="#000000">ВИД СБОКУ (В РАЗРЕЗЕ)</text>
+    
+    <!-- Cabinet Outer Frame -->
+    <rect x="0" y="40" width="175" height="647.5" fill="none" stroke="#000000" stroke-width="2"/>
+    <!-- Legs -->
+    <rect x="15" y="687.5" width="20" height="50" fill="none" stroke="#000000" stroke-width="1.5"/>
+    <rect x="140" y="687.5" width="20" height="50" fill="none" stroke="#000000" stroke-width="1.5"/>
+
+    <!-- Panels sectioning -->
+    <!-- Top & Bottom (16 mm -> 8 px) -->
+    <line x1="0" y1="48" x2="175" y2="48" stroke="#000000" stroke-width="1"/>
+    <line x1="0" y1="679.5" x2="175" y2="679.5" stroke="#000000" stroke-width="1"/>
+    
+    <!-- Back wall (16 mm -> 8 px on the right) -->
+    <line x1="167" y1="48" x2="167" y2="679.5" stroke="#000000" stroke-width="1"/>
+    
+    <!-- Front Door (16 mm -> 8 px on the left) -->
+    <rect x="0" y="41" width="8" height="645.5" fill="#f9f9f9" stroke="#000000" stroke-width="1"/>
+
+    <!-- Shelves (8 px thickness) -->
+    <rect x="8" y="123" width="159" height="8" fill="#e0e0e0" stroke="#000000" stroke-width="1"/>
+    <rect x="8" y="188.5" width="159" height="8" fill="#e0e0e0" stroke="#000000" stroke-width="1"/>
+    <rect x="8" y="571.5" width="159" height="8" fill="#e0e0e0" stroke="#000000" stroke-width="1"/>
+
+    <!-- Hanger Hook (visual) -->
+    <path d="M 88 230 Q 95 230 95 240 Q 95 250 90 250" fill="none" stroke="#555555" stroke-width="2"/>
+
+    <!-- Depth Dimension: 350 -->
+    <line x1="0" y1="40" x2="0" y2="10" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="175" y1="40" x2="175" y2="10" stroke="#0000ff" stroke-width="0.8" />
+    <line x1="10" y1="15" x2="165" y2="15" stroke="#0000ff" stroke-width="0.8" />
+    <polygon points="0,15 10,12 10,18" fill="#0000ff" />
+    <polygon points="175,15 165,12 165,18" fill="#0000ff" />
+    <text x="70" y="10" font-size="11" fill="#0000ff" font-weight="bold">350</text>
+
+    <!-- Inner Depth: 318 (350 - 32 for front door and back panel) -->
+    <line x1="8" y1="450" x2="8" y2="490" stroke="#0000ff" stroke-width="0.8" stroke-dasharray="2,2" />
+    <line x1="167" y1="450" x2="167" y2="490" stroke="#0000ff" stroke-width="0.8" stroke-dasharray="2,2" />
+    <line x1="18" y1="470" x2="157" y2="470" stroke="#0000ff" stroke-width="0.8" />
+    <polygon points="8,470 18,467 18,473" fill="#0000ff" />
+    <polygon points="167,470 157,467 157,473" fill="#0000ff" />
+    <text x="80" y="465" font-size="10" fill="#0000ff" font-weight="bold">318</text>
+  </g>
+
+  <!-- Technical Notes and Legend -->
+  <g transform="translate(40, 715)" font-size="11" fill="#333333">
+    <text x="0" y="0" font-weight="bold" font-size="12">ТЕХНИЧЕСКИЕ ПРИМЕЧАНИЯ:</text>
+    <text x="0" y="18">1. Все размеры указаны в миллиметрах.</text>
+    <text x="0" y="32">2. Основной материал: ЛДСП толщиной 16 мм.</text>
+    <text x="0" y="46">3. Внутренняя ширина шкафчика составляет 268 мм (подходит под органайзер шириной до 265 мм).</text>
+    <text x="0" y="60">4. Высота секции обуви 200 мм позволяет установить двухъярусную подставку/органайзер.</text>
+  </g>
+</svg>
