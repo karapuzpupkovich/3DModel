@@ -183,6 +183,8 @@ def _collect_end_edges_for_fillet(
 ) -> List[Part.Shape]:
     end_edges = []
     for edge in solid.Edges:
+        if len(edge.Vertexes) < 2:
+            continue
         points = [edge.Vertex1.Point, edge.Vertex2.Point]
         if not (
             all(abs(point.z) < 0.01 for point in points)
@@ -210,6 +212,8 @@ def _collect_end_edges_for_fillet(
 def _collect_all_end_edges(solid: Part.Shape, cell_len: float) -> List[Part.Shape]:
     end_edges = []
     for edge in solid.Edges:
+        if len(edge.Vertexes) < 2:
+            continue
         p1 = edge.Vertex1.Point
         p2 = edge.Vertex2.Point
         if abs(p1.z) < 0.01 and abs(p2.z) < 0.01:
@@ -222,6 +226,8 @@ def _collect_all_end_edges(solid: Part.Shape, cell_len: float) -> List[Part.Shap
 def _collect_longitudinal_edges(solid: Part.Shape, cell_len: float) -> List[Part.Shape]:
     longitudinal_edges: List[Part.Shape] = []
     for edge in solid.Edges:
+        if len(edge.Vertexes) < 2:
+            continue
         p1 = edge.Vertex1.Point
         p2 = edge.Vertex2.Point
         if abs(p1.z - p2.z) < cell_len - 0.01:
@@ -257,6 +263,8 @@ def _collect_face_zone_longitudinal_edges(
 
     matched_edges: List[Part.Shape] = []
     for edge in solid.Edges:
+        if len(edge.Vertexes) < 2:
+            continue
         p1 = edge.Vertex1.Point
         p2 = edge.Vertex2.Point
         if abs(p1.z - p2.z) < cell_len - 5.0:
@@ -441,7 +449,7 @@ def create_honeycomb_cell_shape(
     writer = log or _noop
     vertices_out = _build_outer_vertices(cfg)
 
-    writer("Stage 1/6: building shell with reinforcement pads integrated")
+    writer("Stage 1/6: building shell with reinforcement pads and male joints integrated")
     outer_face = make_filleted_polygon(vertices_out, cfg.corner_radius)
     inner_face = outer_face.makeOffset2D(-cfg.wall_t)
     
@@ -458,9 +466,34 @@ def create_honeycomb_cell_shape(
     for rf in reinf_faces:
         inner_face_reinf = inner_face_reinf.cut(rf)
     inner_face_reinf = inner_face_reinf.removeSplitter()
+
+    # Create male joint faces in 2D
+    male_faces = []
+    for face_index in (0, 5):
+        alpha_deg, _ = get_face_angle_and_dist(face_index, cfg)
+        face_mid = (vertices_out[face_index] + vertices_out[(face_index + 1) % 6]) * 0.5
+        mf = make_centered_trapezoid_face(
+            FreeCAD.Vector(0, 0, 0),
+            90.0,
+            cfg.male_v1,
+            cfg.male_v2,
+            cfg.male_w1,
+            cfg.male_w2,
+            0.0,
+            cfg.male_tip_radius,
+        )
+        mf.rotate(FreeCAD.Vector(0, 0, 0), FreeCAD.Vector(0, 0, 1), alpha_deg - 90.0)
+        mf.translate(face_mid)
+        male_faces.append(mf)
+        
+    # Fuse male joints with outer face in 2D
+    outer_face_with_joints = outer_face
+    for mf in male_faces:
+        outer_face_with_joints = outer_face_with_joints.fuse(mf)
+    outer_face_with_joints = outer_face_with_joints.removeSplitter()
     
     # Final cell face
-    cell_face = outer_face.cut(inner_face_reinf).removeSplitter()
+    cell_face = outer_face_with_joints.cut(inner_face_reinf).removeSplitter()
     cell_solid = cell_face.extrude(FreeCAD.Vector(0, 0, cfg.cell_len))
 
     writer("Stage 2/6: applying end and longitudinal fillets")
@@ -501,25 +534,7 @@ def create_honeycomb_cell_shape(
             except Exception as e:
                 writer(f"Warning: failed to apply longitudinal fillets: {e}")
 
-    writer("Stage 3/6: adding male joints")
-    for face_index in (0, 5):
-        alpha_deg, _ = get_face_angle_and_dist(face_index, cfg)
-        face_mid = (vertices_out[face_index] + vertices_out[(face_index + 1) % 6]) * 0.5
-        male_face = make_centered_trapezoid_face(
-            FreeCAD.Vector(0, 0, 0),
-            90.0,
-            cfg.male_v1,
-            cfg.male_v2,
-            cfg.male_w1,
-            cfg.male_w2,
-            0.0,
-            cfg.male_tip_radius,
-        )
-        male_solid = male_face.extrude(FreeCAD.Vector(0, 0, cfg.cell_len))
-
-        male_solid.rotate(FreeCAD.Vector(0, 0, 0), FreeCAD.Vector(0, 0, 1), alpha_deg - 90.0)
-        male_solid.translate(face_mid)
-        cell_solid = cell_solid.fuse(male_solid).removeSplitter()
+    writer("Stage 3/6: male joints already integrated in Stage 1")
 
     writer("Stage 4/6: cutting female grooves")
     for face_index in (2, 3):
