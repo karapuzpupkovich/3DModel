@@ -487,10 +487,7 @@ def create_honeycomb_cell_shape(
         male_faces.append(mf)
         
     # Fuse male joints with outer face in 2D
-    outer_face_with_joints = outer_face
-    for mf in male_faces:
-        outer_face_with_joints = outer_face_with_joints.fuse(mf)
-    outer_face_with_joints = outer_face_with_joints.removeSplitter()
+    outer_face_with_joints = outer_face.fuse(male_faces).removeSplitter()
     
     # Final cell face
     cell_face = outer_face_with_joints.cut(inner_face_reinf).removeSplitter()

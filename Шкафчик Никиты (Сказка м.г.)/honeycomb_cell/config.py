@@ -16,7 +16,7 @@ class HoneycombConfig:
     male_v2: float = 3.0
     male_w1: float = 24.0
     male_w2: float = 31.0
-    male_tip_radius: float = 0.4
+    male_tip_radius: float = 0.8
 
     # Female joint.
     female_w_base: float = 25.6
