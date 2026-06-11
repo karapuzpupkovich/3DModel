@@ -12,8 +12,8 @@ except ImportError:
     print("Error: run this test inside FreeCAD.")
     sys.exit(1)
 
-from honeycomb_cell.builder import create_honeycomb_cell_shape
-from honeycomb_cell.config import DEFAULT_CONFIG
+from Стандартная_ячейка.builder import create_Стандартная_ячейка_shape
+from Стандартная_ячейка.config import DEFAULT_CONFIG
 
 centers = [
     ("ShoeCell_1", 83.5, 64.0),
@@ -23,7 +23,7 @@ centers = [
     ("ShoeCell_5", 238.5, 160.0),
 ]
 
-shape, report = create_honeycomb_cell_shape(DEFAULT_CONFIG, enable_perforation=False)
+shape, report = create_Стандартная_ячейка_shape(DEFAULT_CONFIG, enable_perforation=False)
 rotation = FreeCAD.Rotation(FreeCAD.Vector(1, 0, 0), -90)
 placed = []
 for name, center_x, center_z in centers:

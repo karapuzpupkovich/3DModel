@@ -5,7 +5,7 @@ PROJECT_DIR = os.path.join(os.path.dirname(__file__), "Шкафчик Никит
 if PROJECT_DIR not in sys.path:
     sys.path.insert(0, PROJECT_DIR)
 
-from honeycomb_cell.export_single_cell import main as _honeycomb_main
+from Стандартная_ячейка.export_single_cell import main as _honeycomb_main
 
 try:
     _honeycomb_main()
@@ -243,7 +243,7 @@ def make_female_cutter_face(mid, alpha_deg, w_base, w_tip, depth):
 # ПОСТРОЕНИЕ ЯЧЕЙКИ
 # =============================================
 
-def create_honeycomb_cell_shape():
+def create_Стандартная_ячейка_shape():
     vertices_out = [
         FreeCAD.Vector(a_out, 0, 0),          # 0 — правая вершина
         FreeCAD.Vector(b_out, r_out, 0),      # 1 — верх-право
@@ -472,7 +472,7 @@ def create_honeycomb_cell_shape():
 # СБОРКА И СОХРАНЕНИЕ
 # =============================================
 
-cell_shape = create_honeycomb_cell_shape()
+cell_shape = create_Стандартная_ячейка_shape()
 
 obj = doc.addObject("Part::Feature", "HoneycombCell")
 obj.Shape = cell_shape

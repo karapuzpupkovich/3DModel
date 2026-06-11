@@ -41,7 +41,7 @@
 ---
 
 ## Основные файлы экспорта ячеек
-* STL-модель для 3D-печати: [HoneycombCell.stl](file:///c:/3DModel/Шкафчик%20Никиты%20(Сказка%20м.г.)/honeycomb_cell/output/HoneycombCell.stl)
-* CAD STEP-модель: [HoneycombCell.step](file:///c:/3DModel/Шкафчик%20Никиты%20(Сказка%20м.г.)/honeycomb_cell/output/HoneycombCell.step)
-* Параметрический проект FreeCAD: [HoneycombCell.FCStd](file:///c:/3DModel/Шкафчик%20Никиты%20(Сказка%20м.г.)/honeycomb_cell/output/HoneycombCell.FCStd)
-* Чертеж с размерами: [HoneycombCell_dimensioned.png](file:///c:/3DModel/Шкафчик%20Никиты%20(Сказка%20м.г.)/honeycomb_cell/output/HoneycombCell_dimensioned.png)
+* STL-модель для 3D-печати: [HoneycombCell.stl](file:///c:/3DModel/Шкафчик%20Никиты%20(Сказка%20м.г.)/Стандартная_ячейка/output/HoneycombCell.stl)
+* CAD STEP-модель: [HoneycombCell.step](file:///c:/3DModel/Шкафчик%20Никиты%20(Сказка%20м.г.)/Стандартная_ячейка/output/HoneycombCell.step)
+* Параметрический проект FreeCAD: [HoneycombCell.FCStd](file:///c:/3DModel/Шкафчик%20Никиты%20(Сказка%20м.г.)/Стандартная_ячейка/output/HoneycombCell.FCStd)
+* Чертеж с размерами: [HoneycombCell_dimensioned.png](file:///c:/3DModel/Шкафчик%20Никиты%20(Сказка%20м.г.)/Стандартная_ячейка/output/HoneycombCell_dimensioned.png)

@@ -11,10 +11,10 @@ except ImportError:
     print("Error: run this script inside FreeCAD.")
     sys.exit(1)
 
-from honeycomb_cell.builder import create_honeycomb_cell_shape
-from honeycomb_cell.config import DEFAULT_CONFIG
+from Стандартная_ячейка.builder import create_Стандартная_ячейка_shape
+from Стандартная_ячейка.config import DEFAULT_CONFIG
 
-shape, report = create_honeycomb_cell_shape(DEFAULT_CONFIG, enable_perforation=False)
+shape, report = create_Стандартная_ячейка_shape(DEFAULT_CONFIG, enable_perforation=False)
 print(f"Valid: {report.valid}")
 print(f"Baseline Volume: {shape.Volume:.3f} mm^3")
 print(f"Baseline Area: {shape.Area:.3f} mm^2")

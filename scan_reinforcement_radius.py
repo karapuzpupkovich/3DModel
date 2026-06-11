@@ -11,8 +11,8 @@ except ImportError:
     print("Error: run this script inside FreeCAD.")
     sys.exit(1)
 
-from honeycomb_cell.builder import _build_outer_vertices, get_face_angle_and_dist, make_centered_trapezoid_face
-from honeycomb_cell.config import DEFAULT_CONFIG
+from Стандартная_ячейка.builder import _build_outer_vertices, get_face_angle_and_dist, make_centered_trapezoid_face
+from Стандартная_ячейка.config import DEFAULT_CONFIG
 
 cfg = DEFAULT_CONFIG
 vertices_out = _build_outer_vertices(cfg)

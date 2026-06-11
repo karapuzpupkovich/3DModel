@@ -5,7 +5,7 @@ CURRENT_DIR = os.path.dirname(__file__)
 if CURRENT_DIR not in sys.path:
     sys.path.insert(0, CURRENT_DIR)
 
-from honeycomb_cell.cabinet_builder import main as _cabinet_main
+from Стандартная_ячейка.cabinet_builder import main as _cabinet_main
 
 _cabinet_main()
 sys.exit(0)
@@ -238,7 +238,7 @@ def make_chamfered_hex_cutter(R, Rc, y_inner, y_outer, chamfer_dist=0.4):
     w6 = make_filleted_hex_wire(R + chamfer_dist, y_outer + 5.0, Rc)
     return Part.makeLoft([w1, w2, w3, w4, w5, w6], True, True)
 
-def create_honeycomb_cell_shape():
+def create_Стандартная_ячейка_shape():
     vertices_out = [
         FreeCAD.Vector(a_out, 0, 0),
         FreeCAD.Vector(b_out, r_out, 0),
@@ -400,7 +400,7 @@ def create_honeycomb_cell_shape():
         return cell_solid
 
 # Создаем геометрию соты
-cell_shape = create_honeycomb_cell_shape()
+cell_shape = create_Стандартная_ячейка_shape()
 
 # Координаты для идеального размещения 5 сот в шахматном порядке (с учетом a_out=62.5 и r_out=48.0)
 # Центр шкафчика по ширине X = 161.0мм (290мм внутренняя ширина + 16мм стенка)

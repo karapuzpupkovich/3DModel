@@ -13,10 +13,10 @@ except ImportError:
     sys.exit(1)
 
 try:
-    from honeycomb_cell.builder import create_honeycomb_cell_shape
-    from honeycomb_cell.config import DEFAULT_CONFIG
+    from Стандартная_ячейка.builder import create_Стандартная_ячейка_shape
+    from Стандартная_ячейка.config import DEFAULT_CONFIG
 
-    shape, _ = create_honeycomb_cell_shape(DEFAULT_CONFIG, enable_perforation=False)
+    shape, _ = create_Стандартная_ячейка_shape(DEFAULT_CONFIG, enable_perforation=False)
 
     left = shape.copy()
     right = shape.copy()

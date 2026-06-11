@@ -10,8 +10,8 @@ if PROJECT_DIR not in sys.path:
 
 import FreeCAD
 
-from honeycomb_cell.builder import create_honeycomb_cell_shape
-from honeycomb_cell.config import DEFAULT_CONFIG
+from Стандартная_ячейка.builder import create_Стандартная_ячейка_shape
+from Стандартная_ячейка.config import DEFAULT_CONFIG
 
 
 def write_binary_stl(shape, path: str, deflection: float = 0.5) -> None:
@@ -37,14 +37,14 @@ def main() -> None:
         perforation_rows=8,
         perforation_z_start=3.5,
     )
-    shape, report = create_honeycomb_cell_shape(cfg, enable_perforation=True, log=print)
+    shape, report = create_Стандартная_ячейка_shape(cfg, enable_perforation=True, log=print)
 
     doc = FreeCAD.newDocument("HoneycombSlicePreview")
     obj = doc.addObject("Part::Feature", "HoneycombSlicePreview")
     obj.Shape = shape
     doc.recompute()
 
-    output_dir = os.path.join(PROJECT_DIR, "honeycomb_cell", "output")
+    output_dir = os.path.join(PROJECT_DIR, "Стандартная_ячейка", "output")
     os.makedirs(output_dir, exist_ok=True)
     stl_path = os.path.join(output_dir, "HoneycombSlicePreview.stl")
     write_binary_stl(shape, stl_path)

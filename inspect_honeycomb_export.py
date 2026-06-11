@@ -2,7 +2,7 @@ import os
 import sys
 
 PROJECT_DIR = os.path.join(os.path.dirname(__file__), "Шкафчик Никиты (Сказка м.г.)")
-STEP_PATH = os.path.join(PROJECT_DIR, "honeycomb_cell", "output", "HoneycombCell.step")
+STEP_PATH = os.path.join(PROJECT_DIR, "Стандартная_ячейка", "output", "HoneycombCell.step")
 
 try:
     import FreeCAD

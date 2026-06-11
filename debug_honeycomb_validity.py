@@ -12,11 +12,11 @@ except ImportError:
     print("Error: run this script inside FreeCAD.")
     sys.exit(1)
 
-from honeycomb_cell.builder import create_honeycomb_cell_shape
-from honeycomb_cell.config import DEFAULT_CONFIG
+from Стандартная_ячейка.builder import create_Стандартная_ячейка_shape
+from Стандартная_ячейка.config import DEFAULT_CONFIG
 
 try:
-    shape, report = create_honeycomb_cell_shape(DEFAULT_CONFIG, enable_perforation=False)
+    shape, report = create_Стандартная_ячейка_shape(DEFAULT_CONFIG, enable_perforation=False)
     print(f"Valid flag: {report.valid}")
     print(f"Shape type: {shape.ShapeType}")
     print(f"Solids: {len(shape.Solids)}")

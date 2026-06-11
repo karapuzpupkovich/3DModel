@@ -10,18 +10,18 @@ import FreeCAD
 import Mesh
 import Part
 
-from honeycomb_cell.builder import (
+from Стандартная_ячейка.builder import (
     _build_outer_vertices,
     _build_perforation_cutters,
     _chunked,
-    create_honeycomb_cell_shape,
+    create_Стандартная_ячейка_shape,
 )
-from honeycomb_cell.config import DEFAULT_CONFIG
+from Стандартная_ячейка.config import DEFAULT_CONFIG
 
 
 def main() -> None:
     cfg = DEFAULT_CONFIG
-    shape, _ = create_honeycomb_cell_shape(cfg, enable_perforation=False, log=print)
+    shape, _ = create_Стандартная_ячейка_shape(cfg, enable_perforation=False, log=print)
     vertices = _build_outer_vertices(cfg)
     cutters_by_face, report = _build_perforation_cutters(vertices, cfg, print)
 
@@ -36,7 +36,7 @@ def main() -> None:
     obj.Shape = shape
     doc.recompute()
 
-    output_dir = os.path.join(PROJECT_DIR, "honeycomb_cell", "output")
+    output_dir = os.path.join(PROJECT_DIR, "Стандартная_ячейка", "output")
     os.makedirs(output_dir, exist_ok=True)
     stl_path = os.path.join(output_dir, "HoneycombJointPreview.stl")
     Mesh.export([obj], stl_path)
