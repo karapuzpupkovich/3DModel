@@ -37,7 +37,7 @@ class HoneycombConfig:
     reinforcement_edge_fillet: float = 1.2
 
     # Perforation.
-    perforation_radius: float = 2.5
+    perforation_radius: float = 3.0
     perforation_corner_radius: float = 0.8
     perforation_spacing_u: float = 7.0
     perforation_spacing_z: float = 7.0
@@ -48,6 +48,16 @@ class HoneycombConfig:
     perforation_groove_clearance: float = 13.5
     perforation_chamfer: float = 0.4
     perforation_batch_size: int = 24
+
+    # Perforation column U-coordinates for each of the 4 faces:
+    # Face 0 (Right side - Male joint):
+    perforation_cols_face_0: tuple[float, ...] = (-31.0, 0.0, 31.0)
+    # Face 1 (Top side - Female joint):
+    perforation_cols_face_1: tuple[float, ...] = (-50.0, -41.5, -33.0, 0.0, 33.0, 41.5, 50.0)
+    # Face 2 (Left side - Female joint):
+    perforation_cols_face_2: tuple[float, ...] = (-31.0, 0.0, 31.0)
+    # Face 3 (Bottom side - Male joint):
+    perforation_cols_face_3: tuple[float, ...] = (-50.0, -41.5, -33.0, 0.0, 33.0, 41.5, 50.0)
 
     # Safety.
     end_fillet_r: float = 0.8

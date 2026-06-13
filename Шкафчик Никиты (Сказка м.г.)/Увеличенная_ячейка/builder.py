@@ -287,16 +287,6 @@ def _build_perforation_cutters(
     report = HoneycombBuildReport()
     cutters_by_face: Dict[int, List[Part.Shape]] = {}
 
-    # Define the custom columns of holes for each face to prevent clashes with corner fillets and joints.
-    # Face 1 & 3: 3 columns on each side of the joint
-    # Face 0 & 2: 1 column on each side of the joint
-    face_u_coords = {
-        0: [-31.0, 31.0],
-        1: [-50.0, -41.5, -33.0, 33.0, 41.5, 50.0],
-        2: [-31.0, 31.0],
-        3: [-50.0, -41.5, -33.0, 33.0, 41.5, 50.0]
-    }
-
     for face_index in range(4):
         alpha_deg, _ = get_face_angle_and_dist(face_index, config)
         alpha_rad = math.radians(alpha_deg)
@@ -318,21 +308,29 @@ def _build_perforation_cutters(
 
         for row in range(config.perforation_rows):
             z_pos = config.perforation_z_start + row * config.perforation_spacing_z
-            u_positions = face_u_coords[face_index]
+            u_positions = getattr(config, f"perforation_cols_face_{face_index}")
             
             for u in u_positions:
                 if is_groove:
-                    if abs(u) <= config.reinforcement_w1 / 2.0:
+                    if abs(u) <= config.female_w_base / 2.0:
+                        y_outer = -config.female_depth
+                        y_inner = config.reinforcement_v2
+                    elif abs(u) <= config.reinforcement_w1 / 2.0:
+                        y_outer = 0.0
                         y_inner = config.reinforcement_v2
                     else:
+                        y_outer = 0.0
                         y_inner = -config.wall_t
-                    y_outer = 0.0
                 elif is_ridge:
-                    y_inner = -config.wall_t
-                    y_outer = 0.0
+                    if abs(u) <= config.male_w1 / 2.0:
+                        y_outer = config.male_v2
+                        y_inner = -config.wall_t
+                    else:
+                        y_outer = 0.0
+                        y_inner = -config.wall_t
                 else:
-                    y_inner = -config.wall_t
                     y_outer = 0.0
+                    y_inner = -config.wall_t
 
                 _append_perforation_cutters(
                     face_cutters,
