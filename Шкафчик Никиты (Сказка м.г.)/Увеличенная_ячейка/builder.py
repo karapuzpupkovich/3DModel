@@ -310,7 +310,7 @@ def _build_perforation_cutters(
         if face_index in (0, 2):
             flat_face_half_length = config.r_out - config.corner_radius
         else:
-            flat_face_half_length = config.b_out
+            flat_face_half_length = config.a_out - config.corner_radius
         max_u_center = flat_face_half_length - config.perforation_edge_min - (config.perforation_radius + config.perforation_chamfer)
 
         for row in range(config.perforation_rows):
