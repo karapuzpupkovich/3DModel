@@ -469,15 +469,13 @@ def create_large_cell_shape(
     if enable_perforation:
         writer("Stage 6/6: cutting perforation in batches")
         cutters_by_face, report = _build_perforation_cutters(cfg, writer)
+        all_cutters = []
         for face_index, face_cutters in cutters_by_face.items():
-            chunks = list(_chunked(face_cutters, cfg.perforation_batch_size))
-            for batch_index, chunk in enumerate(chunks, start=1):
-                writer(
-                    f"Cutting face {face_index} batch {batch_index}/{len(chunks)} with {len(chunk)} holes"
-                )
-                compound = Part.makeCompound(list(chunk))
-                cell_solid = cell_solid.cut(compound)
-            cell_solid = cell_solid.removeSplitter()
+            all_cutters.extend(face_cutters)
+        writer(f"Cutting all {len(all_cutters)} holes in a single boolean operation...")
+        compound = Part.makeCompound(all_cutters)
+        cell_solid = cell_solid.cut(compound)
+        cell_solid = cell_solid.removeSplitter()
     else:
         writer("Stage 6/6: perforation skipped")
 

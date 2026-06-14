@@ -9,6 +9,7 @@ if PROJECT_DIR not in sys.path:
 try:
     import FreeCAD
     import Part
+    import Mesh
 except ImportError:
     print("Error: must run inside FreeCAD command line.")
     sys.exit(1)
@@ -40,7 +41,7 @@ def main():
     print(f"Saved cell STEP to: {cell_step}")
 
     cell_stl = os.path.join(output_dir, "HoneycombCell_large.stl")
-    cell_shape.exportStl(cell_stl)
+    Mesh.export([cell_obj], cell_stl)
     print(f"Saved cell STL to: {cell_stl}")
 
     print("\nBuilding bottom support plate...")
@@ -61,7 +62,7 @@ def main():
     print(f"Saved plate STEP to: {plate_step}")
 
     plate_stl = os.path.join(output_dir, "BottomPlate.stl")
-    plate_shape.exportStl(plate_stl)
+    Mesh.export([plate_obj], plate_stl)
     print(f"Saved plate STL to: {plate_stl}")
 
     print("\nAll models generated successfully!")

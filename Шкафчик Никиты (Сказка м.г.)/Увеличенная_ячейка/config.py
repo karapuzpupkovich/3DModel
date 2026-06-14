@@ -49,15 +49,15 @@ class HoneycombConfig:
     perforation_chamfer: float = 0.4
     perforation_batch_size: int = 24
 
-    # Perforation column U-coordinates for each of the 4 faces:
+    # Perforation column U-coordinates for each of the 4 faces (dense grid spacing 7.0 mm):
     # Face 0 (Right side - Male joint):
-    perforation_cols_face_0: tuple[float, ...] = (-31.0, 0.0, 31.0)
+    perforation_cols_face_0: tuple[float, ...] = (-28.0, -21.0, -14.0, -7.0, 0.0, 7.0, 14.0, 21.0, 28.0)
     # Face 1 (Top side - Female joint):
-    perforation_cols_face_1: tuple[float, ...] = (-50.0, -41.5, -33.0, 0.0, 33.0, 41.5, 50.0)
+    perforation_cols_face_1: tuple[float, ...] = (-49.0, -42.0, -35.0, -28.0, -21.0, -14.0, -7.0, 0.0, 7.0, 14.0, 21.0, 28.0, 35.0, 42.0, 49.0)
     # Face 2 (Left side - Female joint):
-    perforation_cols_face_2: tuple[float, ...] = (-31.0, 0.0, 31.0)
+    perforation_cols_face_2: tuple[float, ...] = (-28.0, -21.0, -14.0, -7.0, 0.0, 7.0, 14.0, 21.0, 28.0)
     # Face 3 (Bottom side - Male joint):
-    perforation_cols_face_3: tuple[float, ...] = (-50.0, -41.5, -33.0, 0.0, 33.0, 41.5, 50.0)
+    perforation_cols_face_3: tuple[float, ...] = (-49.0, -42.0, -35.0, -28.0, -21.0, -14.0, -7.0, 0.0, 7.0, 14.0, 21.0, 28.0, 35.0, 42.0, 49.0)
 
     # Safety.
     end_fillet_r: float = 0.8
