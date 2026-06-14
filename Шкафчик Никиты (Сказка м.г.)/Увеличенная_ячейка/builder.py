@@ -306,11 +306,20 @@ def _build_perforation_cutters(
         face_cutters: List[Part.Shape] = []
         rotation = alpha_deg - 90.0
 
+        # Calculate max_u to prevent perforation from crossing into fillets/corners
+        if face_index in (0, 2):
+            flat_face_half_length = config.r_out - config.corner_radius
+        else:
+            flat_face_half_length = config.b_out
+        max_u_center = flat_face_half_length - config.perforation_edge_min - (config.perforation_radius + config.perforation_chamfer)
+
         for row in range(config.perforation_rows):
             z_pos = config.perforation_z_start + row * config.perforation_spacing_z
             u_positions = getattr(config, f"perforation_cols_face_{face_index}")
             
             for u in u_positions:
+                if abs(u) > max_u_center + 0.01:
+                    continue  # Safety boundary check
                 if is_groove:
                     if abs(u) <= config.female_w_base / 2.0:
                         y_outer = -config.female_depth
@@ -469,13 +478,15 @@ def create_large_cell_shape(
     if enable_perforation:
         writer("Stage 6/6: cutting perforation in batches")
         cutters_by_face, report = _build_perforation_cutters(cfg, writer)
-        all_cutters = []
         for face_index, face_cutters in cutters_by_face.items():
-            all_cutters.extend(face_cutters)
-        writer(f"Cutting all {len(all_cutters)} holes in a single boolean operation...")
-        compound = Part.makeCompound(all_cutters)
-        cell_solid = cell_solid.cut(compound)
-        cell_solid = cell_solid.removeSplitter()
+            chunks = list(_chunked(face_cutters, cfg.perforation_batch_size))
+            for batch_index, chunk in enumerate(chunks, start=1):
+                writer(
+                    f"Cutting face {face_index} batch {batch_index}/{len(chunks)} with {len(chunk)} holes"
+                )
+                compound = Part.makeCompound(list(chunk))
+                cell_solid = cell_solid.cut(compound)
+            cell_solid = cell_solid.removeSplitter()
     else:
         writer("Stage 6/6: perforation skipped")
 
