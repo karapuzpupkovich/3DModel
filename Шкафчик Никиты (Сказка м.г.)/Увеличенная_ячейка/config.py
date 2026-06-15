@@ -37,27 +37,27 @@ class HoneycombConfig:
     reinforcement_edge_fillet: float = 1.2
 
     # Perforation.
-    perforation_radius: float = 3.0
+    perforation_radius: float = 2.8
     perforation_corner_radius: float = 0.8
-    perforation_spacing_u: float = 7.0
-    perforation_spacing_z: float = 7.0
-    perforation_rows: int = 27
-    perforation_z_start: float = 9.0
+    perforation_spacing_u: float = 6.6
+    perforation_spacing_z: float = 6.6
+    perforation_rows: int = 28
+    perforation_z_start: float = 10.9
     perforation_edge_min: float = 7.5
     perforation_joint_edge_min: float = 1.5
     perforation_groove_clearance: float = 13.5
     perforation_chamfer: float = 0.4
     perforation_batch_size: int = 24
 
-    # Perforation column U-coordinates for each of the 4 faces (dense grid spacing 7.0 mm):
+    # Perforation column U-coordinates for each of the 4 faces (dense grid spacing 6.6 mm):
     # Face 0 (Right side - Male joint):
-    perforation_cols_face_0: tuple[float, ...] = (-21.0, 21.0)
+    perforation_cols_face_0: tuple[float, ...] = (-33.0, -26.4, -19.8, 19.8, 26.4, 33.0)
     # Face 1 (Top side - Female joint):
-    perforation_cols_face_1: tuple[float, ...] = (-49.0, -42.0, -35.0, 35.0, 42.0, 49.0)
+    perforation_cols_face_1: tuple[float, ...] = (-56.1, -49.5, -42.9, -36.3, -29.7, 29.7, 36.3, 42.9, 49.5, 56.1)
     # Face 2 (Left side - Female joint):
-    perforation_cols_face_2: tuple[float, ...] = ()
+    perforation_cols_face_2: tuple[float, ...] = (-33.0, 33.0)
     # Face 3 (Bottom side - Male joint):
-    perforation_cols_face_3: tuple[float, ...] = (-49.0, -42.0, -35.0, -28.0, -21.0, 21.0, 28.0, 35.0, 42.0, 49.0)
+    perforation_cols_face_3: tuple[float, ...] = (-52.8, -46.2, -39.6, -33.0, -26.4, -19.8, 19.8, 26.4, 33.0, 39.6, 46.2, 52.8)
 
     # Safety.
     end_fillet_r: float = 0.8
