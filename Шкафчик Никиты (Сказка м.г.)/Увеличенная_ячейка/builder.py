@@ -324,7 +324,7 @@ def _build_perforation_cutters(
                     if abs(u) <= config.female_w_base / 2.0:
                         y_outer = -config.female_depth
                         y_inner = config.reinforcement_v2
-                    elif abs(u) <= config.reinforcement_w1 / 2.0:
+                    elif abs(u) - (config.perforation_radius + config.perforation_chamfer) <= config.reinforcement_w1 / 2.0:
                         y_outer = 0.0
                         y_inner = config.reinforcement_v2
                     else:

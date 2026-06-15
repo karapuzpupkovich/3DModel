@@ -51,13 +51,13 @@ class HoneycombConfig:
 
     # Perforation column U-coordinates for each of the 4 faces (dense grid spacing 6.6 mm):
     # Face 0 (Right side - Male joint):
-    perforation_cols_face_0: tuple[float, ...] = (-33.0, -26.4, -19.8, 19.8, 26.4, 33.0)
+    perforation_cols_face_0: tuple[float, ...] = (-33.0, -26.4, -19.8, -6.6, 0.0, 6.6, 19.8, 26.4, 33.0)
     # Face 1 (Top side - Female joint):
-    perforation_cols_face_1: tuple[float, ...] = (-56.1, -49.5, -42.9, -36.3, -29.7, 29.7, 36.3, 42.9, 49.5, 56.1)
+    perforation_cols_face_1: tuple[float, ...] = (-52.8, -46.2, -39.6, -33.0, -26.4, -19.8, -6.6, 0.0, 6.6, 19.8, 26.4, 33.0, 39.6, 46.2, 52.8)
     # Face 2 (Left side - Female joint):
-    perforation_cols_face_2: tuple[float, ...] = (-33.0, 33.0)
+    perforation_cols_face_2: tuple[float, ...] = (-33.0, -26.4, -19.8, -6.6, 0.0, 6.6, 19.8, 26.4, 33.0)
     # Face 3 (Bottom side - Male joint):
-    perforation_cols_face_3: tuple[float, ...] = (-52.8, -46.2, -39.6, -33.0, -26.4, -19.8, 19.8, 26.4, 33.0, 39.6, 46.2, 52.8)
+    perforation_cols_face_3: tuple[float, ...] = (-52.8, -46.2, -39.6, -33.0, -26.4, -19.8, -6.6, 0.0, 6.6, 19.8, 26.4, 33.0, 39.6, 46.2, 52.8)
 
     # Safety.
     end_fillet_r: float = 0.8
