@@ -155,7 +155,7 @@ def render_cell_drawings(stl_path: str, output_path: str) -> None:
     print(f"Cell views saved to: {output_path}")
 
 
-def render_plate_drawings(stl_path: str, output_path: str) -> None:
+def render_plate_drawings(stl_path: str, output_path: str, width: float = 288.0) -> None:
     triangles = load_stl(stl_path)
     image = Image.new("RGB", (1800, 1000), (255, 255, 255))
     draw = ImageDraw.Draw(image)
@@ -170,20 +170,20 @@ def render_plate_drawings(stl_path: str, output_path: str) -> None:
     rot_y_side = 90.0
     rot_z_side = 0.0
 
-    print("Rendering Isometric view (Plate)...")
+    print(f"Rendering Isometric view (Plate, width={width})...")
     render_view_params(draw, triangles, (40, 40, 860, 480), "Isometric View", rot_z_deg=45.0, rot_x_deg=35.264)
     
-    print("Rendering Front view (Plate)...")
+    print(f"Rendering Front view (Plate, width={width})...")
     sc_f, cx_f, cy_f, scx_f, scy_f = render_view_params(draw, triangles, box_front, "Front View (XY Projection)", rot_x_deg=rot_x_front)
     
-    print("Rendering Side view (Plate)...")
+    print(f"Rendering Side view (Plate, width={width})...")
     sc_s, cx_s, cy_s, scx_s, scy_s = render_view_params(draw, triangles, box_side, "Side View (ZY Projection)", rot_y_deg=rot_y_side, rot_x_deg=rot_x_side)
     
-    print("Rendering Top view (Plate)...")
+    print(f"Rendering Top view (Plate, width={width})...")
     render_view_params(draw, triangles, (940, 520, 1760, 960), "Top View (ZX Projection)", rot_z_deg=0.0, rot_x_deg=0.0)
 
-    p_left_out = (-144.0, 0.0, 100.0)
-    p_right_out = (144.0, 0.0, 100.0)
+    p_left_out = (-width / 2.0, 0.0, 100.0)
+    p_right_out = (width / 2.0, 0.0, 100.0)
     p_top_out = (0.0, 0.0, 100.0)
     p_bottom_out = (0.0, -4.8, 100.0)
     
@@ -196,12 +196,12 @@ def render_plate_drawings(stl_path: str, output_path: str) -> None:
     dim_color = (180, 40, 40)
     line_color = (100, 100, 100)
 
-    # Width Dimension (288.0 mm)
+    # Width Dimension
     y_off_w = sf_bottom[1] + 60
     draw.line([(sf_left[0], sf_left[1]), (sf_left[0], y_off_w + 10)], fill=line_color, width=1)
     draw.line([(sf_right[0], sf_right[1]), (sf_right[0], y_off_w + 10)], fill=line_color, width=1)
     draw_arrow(draw, (sf_left[0], y_off_w), (sf_right[0], y_off_w), dim_color)
-    draw.text(((sf_left[0] + sf_right[0]) / 2 - 25, y_off_w - 18), "288.0 mm", fill=dim_color, font=font)
+    draw.text(((sf_left[0] + sf_right[0]) / 2 - 25, y_off_w - 18), f"{width:.1f} mm", fill=dim_color, font=font)
 
     # Height Dimension (4.8 mm)
     x_off_h = sf_left[0] - 60
@@ -233,9 +233,24 @@ def main():
     cell_img = os.path.join(output_dir, "HoneycombCell_large_dimensioned.png")
     render_cell_drawings(cell_stl, cell_img)
     
+    # 1. Original 288mm Plate
     plate_stl = os.path.join(output_dir, "BottomPlate.stl")
     plate_img = os.path.join(output_dir, "BottomPlate_dimensioned.png")
-    render_plate_drawings(plate_stl, plate_img)
+    render_plate_drawings(plate_stl, plate_img, width=288.0)
+
+    # 2. Split Plates (144mm)
+    split_L_stl = os.path.join(output_dir, "BottomPlate_split_L.stl")
+    split_L_img = os.path.join(output_dir, "BottomPlate_split_L_dimensioned.png")
+    render_plate_drawings(split_L_stl, split_L_img, width=144.0)
+
+    split_R_stl = os.path.join(output_dir, "BottomPlate_split_R.stl")
+    split_R_img = os.path.join(output_dir, "BottomPlate_split_R_dimensioned.png")
+    render_plate_drawings(split_R_stl, split_R_img, width=144.0)
+
+    # 3. Short Plate (250mm)
+    short_stl = os.path.join(output_dir, "BottomPlate_short_name.stl")
+    short_img = os.path.join(output_dir, "BottomPlate_short_name_dimensioned.png")
+    render_plate_drawings(short_stl, short_img, width=250.0)
 
 
 if __name__ == "__main__":

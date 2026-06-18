@@ -508,8 +508,6 @@ def create_bottom_plate_shape(
     plate_solid = plate_face.extrude(FreeCAD.Vector(0, 0, cfg.plate_depth))
 
     # We cut two female grooves at X = -72.0 and X = 72.0
-    # These grooves correspond to the top-face female groove cutter of the cells
-    # Top face normal points upwards (alpha_deg = 90.0)
     for center_x in (-72.0, 72.0):
         mid = FreeCAD.Vector(center_x, 0.0, 0.0)
         female_face = make_female_cutter_face(mid, 90.0, cfg)
@@ -517,18 +515,236 @@ def create_bottom_plate_shape(
         plate_solid = plate_solid.cut(female_solid).removeSplitter()
 
     # Apply safety fillets to the top front/back horizontal edges of the plate
-    # Let's collect top-outer edges
     fillet_edges = []
     for edge in plate_solid.Edges:
         if len(edge.Vertexes) < 2:
             continue
         p1 = edge.Vertex1.Point
         p2 = edge.Vertex2.Point
-        # Find horizontal long edges along X
         if abs(p1.y) < 0.01 and abs(p2.y) < 0.01:
-            if abs(p1.z) < 0.01 and abs(p2.z - cfg.plate_depth) < 0.01:
+            if abs(p1.z - p2.z) < 0.01 and (abs(p1.z) < 0.01 or abs(p1.z - cfg.plate_depth) < 0.01):
                 fillet_edges.append(edge)
-            elif abs(p2.z) < 0.01 and abs(p1.z - cfg.plate_depth) < 0.01:
+
+    if fillet_edges:
+        try:
+            plate_solid = plate_solid.makeFillet(0.8, fillet_edges)
+        except Exception as e:
+            writer(f"Warning: failed to apply plate fillets: {e}")
+
+    return plate_solid
+
+
+def create_split_plate_left_shape(
+    config: HoneycombConfig | None = None,
+    log: Callable[[str], None] | None = None,
+) -> Part.Shape:
+    cfg = config or DEFAULT_CONFIG
+    writer = log or _noop
+
+    writer("Building Left Split bottom support plate (width 144mm)...")
+    # Base plate solid: width = 144.0, thickness = 4.8, length = 200.0
+    # X goes from -72 to 72, Y from -4.8 to 0, Z from 0 to 200.
+    # The groove is in the center (X = 0).
+    plate_face = Part.makePlane(144.0, cfg.plate_thickness, FreeCAD.Vector(-72.0, -cfg.plate_thickness, 0), FreeCAD.Vector(0, 0, 1))
+    plate_solid = plate_face.extrude(FreeCAD.Vector(0, 0, cfg.plate_depth))
+
+    # Cut single female groove at X = 0
+    mid = FreeCAD.Vector(0.0, 0.0, 0.0)
+    female_face = make_female_cutter_face(mid, 90.0, cfg)
+    female_solid = female_face.extrude(FreeCAD.Vector(0, 0, cfg.plate_depth))
+    plate_solid = plate_solid.cut(female_solid).removeSplitter()
+
+    # Add dovetail pins on the right edge X = 72.0
+    z_centers = [40.0, 100.0, 160.0]
+    pin_depth = 5.0
+    pin_w_neck = 20.0
+    pin_w_head = 30.0
+
+    pin_shapes = []
+    for z_c in z_centers:
+        p1 = FreeCAD.Vector(72.0, 0.0, z_c - pin_w_neck / 2.0)
+        p2 = FreeCAD.Vector(72.0 + pin_depth, 0.0, z_c - pin_w_head / 2.0)
+        p3 = FreeCAD.Vector(72.0 + pin_depth, 0.0, z_c + pin_w_head / 2.0)
+        p4 = FreeCAD.Vector(72.0, 0.0, z_c + pin_w_neck / 2.0)
+
+        wire = Part.Wire([
+            Part.makeLine(p1, p2),
+            Part.makeLine(p2, p3),
+            Part.makeLine(p3, p4),
+            Part.makeLine(p4, p1)
+        ])
+        face = Part.Face(wire)
+        pin_solid = face.extrude(FreeCAD.Vector(0, -cfg.plate_thickness, 0))
+        pin_shapes.append(pin_solid)
+
+    plate_solid = plate_solid.fuse(pin_shapes).removeSplitter()
+
+    # Apply safety fillets to the top front/back horizontal edges (avoiding the pins)
+    fillet_edges = []
+    for edge in plate_solid.Edges:
+        if len(edge.Vertexes) < 2:
+            continue
+        p1 = edge.Vertex1.Point
+        p2 = edge.Vertex2.Point
+        if abs(p1.y) < 0.01 and abs(p2.y) < 0.01:
+            if abs(p1.z - p2.z) < 0.01 and (abs(p1.z) < 0.01 or abs(p1.z - cfg.plate_depth) < 0.01):
+                if p1.x < 72.01 and p2.x < 72.01:
+                    fillet_edges.append(edge)
+
+    if fillet_edges:
+        try:
+            plate_solid = plate_solid.makeFillet(0.8, fillet_edges)
+        except Exception as e:
+            writer(f"Warning: failed to apply plate fillets: {e}")
+
+    return plate_solid
+
+
+def create_split_plate_right_shape(
+    config: HoneycombConfig | None = None,
+    log: Callable[[str], None] | None = None,
+) -> Part.Shape:
+    cfg = config or DEFAULT_CONFIG
+    writer = log or _noop
+
+    writer("Building Right Split bottom support plate (width 144mm)...")
+    # Base plate solid: width = 144.0, thickness = 4.8, length = 200.0
+    # X goes from -72 to 72, Y from -4.8 to 0, Z from 0 to 200.
+    # The groove is in the center (X = 0).
+    plate_face = Part.makePlane(144.0, cfg.plate_thickness, FreeCAD.Vector(-72.0, -cfg.plate_thickness, 0), FreeCAD.Vector(0, 0, 1))
+    plate_solid = plate_face.extrude(FreeCAD.Vector(0, 0, cfg.plate_depth))
+
+    # Cut single female groove at X = 0
+    mid = FreeCAD.Vector(0.0, 0.0, 0.0)
+    female_face = make_female_cutter_face(mid, 90.0, cfg)
+    female_solid = female_face.extrude(FreeCAD.Vector(0, 0, cfg.plate_depth))
+    plate_solid = plate_solid.cut(female_solid).removeSplitter()
+
+    # Cut matching dovetail sockets on the left edge X = -72.0
+    z_centers = [40.0, 100.0, 160.0]
+    pin_depth = 5.0
+    pin_w_neck = 20.0
+    pin_w_head = 30.0
+    clearance = 0.15
+
+    socket_shapes = []
+    for z_c in z_centers:
+        c = clearance
+        p1 = FreeCAD.Vector(-72.0, 0.0, z_c - pin_w_neck / 2.0 - c)
+        p2 = FreeCAD.Vector(-72.0 + pin_depth + c, 0.0, z_c - pin_w_head / 2.0 - c)
+        p3 = FreeCAD.Vector(-72.0 + pin_depth + c, 0.0, z_c + pin_w_head / 2.0 + c)
+        p4 = FreeCAD.Vector(-72.0, 0.0, z_c + pin_w_neck / 2.0 + c)
+
+        p1_out = FreeCAD.Vector(-72.0 - 2.0, 0.0, z_c - pin_w_neck / 2.0 - c)
+        p4_out = FreeCAD.Vector(-72.0 - 2.0, 0.0, z_c + pin_w_neck / 2.0 + c)
+
+        wire = Part.Wire([
+            Part.makeLine(p1_out, p2),
+            Part.makeLine(p2, p3),
+            Part.makeLine(p3, p4_out),
+            Part.makeLine(p4_out, p1_out)
+        ])
+        face = Part.Face(wire)
+        socket_solid = face.extrude(FreeCAD.Vector(0, -cfg.plate_thickness - 1.0, 0))
+        socket_shapes.append(socket_solid)
+
+    plate_solid = plate_solid.cut(socket_shapes).removeSplitter()
+
+    # Apply safety fillets to the top front/back horizontal edges (avoiding the sockets)
+    fillet_edges = []
+    for edge in plate_solid.Edges:
+        if len(edge.Vertexes) < 2:
+            continue
+        p1 = edge.Vertex1.Point
+        p2 = edge.Vertex2.Point
+        if abs(p1.y) < 0.01 and abs(p2.y) < 0.01:
+            if abs(p1.z - p2.z) < 0.01 and (abs(p1.z) < 0.01 or abs(p1.z - cfg.plate_depth) < 0.01):
+                if p1.x > -66.99 and p2.x > -66.99:
+                    fillet_edges.append(edge)
+
+    if fillet_edges:
+        try:
+            plate_solid = plate_solid.makeFillet(0.8, fillet_edges)
+        except Exception as e:
+            writer(f"Warning: failed to apply plate fillets: {e}")
+
+    return plate_solid
+
+
+def create_short_plate_with_name_shape(
+    config: HoneycombConfig | None = None,
+    log: Callable[[str], None] | None = None,
+) -> Part.Shape:
+    cfg = config or DEFAULT_CONFIG
+    writer = log or _noop
+
+    writer("Building Short bottom support plate (width 250mm) with child name 'НИКИТА'...")
+    # Base plate solid: width = 250.0, thickness = 4.8, length = 200.0
+    # In local coordinates, it goes from X=-125 to X=125, Y=-4.8 to Y=0, Z=0 to Z=200
+    plate_width = 250.0
+    plate_face = Part.makePlane(plate_width, cfg.plate_thickness, FreeCAD.Vector(-plate_width / 2.0, -cfg.plate_thickness, 0), FreeCAD.Vector(0, 0, 1))
+    plate_solid = plate_face.extrude(FreeCAD.Vector(0, 0, cfg.plate_depth))
+
+    # Cut two female grooves at X = -72.0 and X = 72.0
+    for center_x in (-72.0, 72.0):
+        mid = FreeCAD.Vector(center_x, 0.0, 0.0)
+        female_face = make_female_cutter_face(mid, 90.0, cfg)
+        female_solid = female_face.extrude(FreeCAD.Vector(0, 0, cfg.plate_depth))
+        plate_solid = plate_solid.cut(female_solid).removeSplitter()
+
+    # Generate and engrave name "НИКИТА" using Draft ShapeString
+    import Draft
+    font_file = r"C:\Windows\Fonts\segoeprb.ttf"
+    text_str = "НИКИТА"
+    font_size = 20.0
+
+    created_doc = False
+    doc = FreeCAD.ActiveDocument
+    if doc is None:
+        doc = FreeCAD.newDocument("TempTextDoc")
+        created_doc = True
+
+    try:
+        shapestring = Draft.make_shapestring(text_str, font_file, font_size)
+        doc.recompute()
+        text_shape = shapestring.Shape.copy()
+
+        # Rotation matrix to align:
+        # Text X (width) -> Plate Z (depth)
+        # Text Y (height) -> Plate X (width)
+        # Text Z (normal) -> Plate Y (thickness normal)
+        mat = FreeCAD.Matrix()
+        mat.A11, mat.A12, mat.A13, mat.A14 = 0.0, 1.0, 0.0, 0.0
+        mat.A21, mat.A22, mat.A23, mat.A24 = 0.0, 0.0, 1.0, 0.0
+        mat.A31, mat.A32, mat.A33, mat.A34 = 1.0, 0.0, 0.0, 0.0
+        text_shape.transformShape(mat)
+
+        # Center the rotated text on the top surface of the plate (Y=0, Z_center=100, X_center=0)
+        center_rotated = text_shape.BoundBox.Center
+        target_center = FreeCAD.Vector(0.0, 0.0, cfg.plate_depth / 2.0)
+        translation = target_center - center_rotated
+        text_shape.translate(translation)
+
+        # Extrude downwards by 2.4 mm (half the plate thickness)
+        text_solid = text_shape.extrude(FreeCAD.Vector(0, -2.4, 0))
+
+        # Perform the boolean cut
+        plate_solid = plate_solid.cut(text_solid).removeSplitter()
+    except Exception as e:
+        writer(f"Warning: failed to engrave name: {e}")
+    finally:
+        if created_doc:
+            FreeCAD.closeDocument("TempTextDoc")
+
+    # Apply safety fillets to the top front/back horizontal edges of the plate
+    fillet_edges = []
+    for edge in plate_solid.Edges:
+        if len(edge.Vertexes) < 2:
+            continue
+        p1 = edge.Vertex1.Point
+        p2 = edge.Vertex2.Point
+        if abs(p1.y) < 0.01 and abs(p2.y) < 0.01:
+            if abs(p1.z - p2.z) < 0.01 and (abs(p1.z) < 0.01 or abs(p1.z - cfg.plate_depth) < 0.01):
                 fillet_edges.append(edge)
 
     if fillet_edges:

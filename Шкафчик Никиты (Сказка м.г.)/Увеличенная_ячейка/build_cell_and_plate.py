@@ -14,8 +14,35 @@ except ImportError:
     print("Error: must run inside FreeCAD command line.")
     sys.exit(1)
 
-from Увеличенная_ячейка.builder import create_large_cell_shape, create_bottom_plate_shape
+from Увеличенная_ячейка.builder import (
+    create_large_cell_shape,
+    create_bottom_plate_shape,
+    create_split_plate_left_shape,
+    create_split_plate_right_shape,
+    create_short_plate_with_name_shape
+)
 from Увеличенная_ячейка.config import DEFAULT_CONFIG
+
+
+def export_shape(shape, name, output_dir):
+    doc = FreeCAD.newDocument(name)
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = shape
+    doc.recompute()
+
+    fcstd = os.path.join(output_dir, f"{name}.FCStd")
+    doc.saveAs(fcstd)
+    print(f"Saved {name} FCStd to: {fcstd}")
+
+    step = os.path.join(output_dir, f"{name}.step")
+    shape.exportStep(step)
+    print(f"Saved {name} STEP to: {step}")
+
+    stl = os.path.join(output_dir, f"{name}.stl")
+    Mesh.export([obj], stl)
+    print(f"Saved {name} STL to: {stl}")
+    
+    FreeCAD.closeDocument(name)
 
 
 def main():
@@ -26,44 +53,23 @@ def main():
     print("Building large honeycomb cell...")
     cell_shape, report = create_large_cell_shape(DEFAULT_CONFIG, enable_perforation=True, log=print)
     print(f"Cell valid: {report.valid}, total holes: {report.total_holes}")
+    export_shape(cell_shape, "HoneycombCell_large", output_dir)
 
-    cell_doc = FreeCAD.newDocument("LargeCell")
-    cell_obj = cell_doc.addObject("Part::Feature", "HoneycombCell_Large")
-    cell_obj.Shape = cell_shape
-    cell_doc.recompute()
-    
-    cell_fcstd = os.path.join(output_dir, "HoneycombCell_large.FCStd")
-    cell_doc.saveAs(cell_fcstd)
-    print(f"Saved cell FCStd to: {cell_fcstd}")
-
-    cell_step = os.path.join(output_dir, "HoneycombCell_large.step")
-    cell_shape.exportStep(cell_step)
-    print(f"Saved cell STEP to: {cell_step}")
-
-    cell_stl = os.path.join(output_dir, "HoneycombCell_large.stl")
-    Mesh.export([cell_obj], cell_stl)
-    print(f"Saved cell STL to: {cell_stl}")
-
-    print("\nBuilding bottom support plate...")
+    print("\nBuilding bottom support plate (Original 288mm)...")
     plate_shape = create_bottom_plate_shape(DEFAULT_CONFIG, log=print)
-    print(f"Plate valid: {plate_shape.isValid()}")
+    export_shape(plate_shape, "BottomPlate", output_dir)
 
-    plate_doc = FreeCAD.newDocument("BottomPlate")
-    plate_obj = plate_doc.addObject("Part::Feature", "BottomPlate")
-    plate_obj.Shape = plate_shape
-    plate_doc.recompute()
+    print("\nBuilding Left Split support plate (144mm)...")
+    split_L_shape = create_split_plate_left_shape(DEFAULT_CONFIG, log=print)
+    export_shape(split_L_shape, "BottomPlate_split_L", output_dir)
 
-    plate_fcstd = os.path.join(output_dir, "BottomPlate.FCStd")
-    plate_doc.saveAs(plate_fcstd)
-    print(f"Saved plate FCStd to: {plate_fcstd}")
+    print("\nBuilding Right Split support plate (144mm)...")
+    split_R_shape = create_split_plate_right_shape(DEFAULT_CONFIG, log=print)
+    export_shape(split_R_shape, "BottomPlate_split_R", output_dir)
 
-    plate_step = os.path.join(output_dir, "BottomPlate.step")
-    plate_shape.exportStep(plate_step)
-    print(f"Saved plate STEP to: {plate_step}")
-
-    plate_stl = os.path.join(output_dir, "BottomPlate.stl")
-    Mesh.export([plate_obj], plate_stl)
-    print(f"Saved plate STL to: {plate_stl}")
+    print("\nBuilding Short support plate with engraving (250mm)...")
+    short_name_shape = create_short_plate_with_name_shape(DEFAULT_CONFIG, log=print)
+    export_shape(short_name_shape, "BottomPlate_short_name", output_dir)
 
     print("\nAll models generated successfully!")
 
