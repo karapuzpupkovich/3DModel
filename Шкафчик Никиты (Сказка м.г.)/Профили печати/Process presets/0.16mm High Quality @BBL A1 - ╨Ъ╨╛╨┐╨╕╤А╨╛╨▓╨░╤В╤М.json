@@ -1,0 +1,18 @@
+{
+    "brim_type": "outer_only",
+    "brim_width": "10",
+    "enable_support": "1",
+    "from": "User",
+    "inherits": "0.16mm High Quality @BBL A1",
+    "name": "0.16mm High Quality @BBL A1 - Копировать",
+    "print_extruder_id": [
+        "1"
+    ],
+    "print_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "print_settings_id": "0.16mm High Quality @BBL A1 - Копировать",
+    "support_on_build_plate_only": "1",
+    "support_threshold_angle": "20",
+    "version": "2.7.0.7"
+}

@@ -1,0 +1,22 @@
+{
+    "enable_support": "1",
+    "from": "User",
+    "inherits": "0.28mm Extra Draft @BBL A1",
+    "initial_layer_print_height": "0.1",
+    "ironing_type": "top",
+    "layer_height": "0.14",
+    "name": "0.28mm Extra Draft @BBL A1 - Копировать",
+    "print_extruder_id": [
+        "1"
+    ],
+    "print_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "print_settings_id": "0.28mm Extra Draft @BBL A1 - Копировать",
+    "skeleton_infill_density": "40%",
+    "skin_infill_density": "40%",
+    "sparse_infill_density": "40%",
+    "support_critical_regions_only": "1",
+    "version": "2.7.0.7",
+    "wall_loops": "4"
+}

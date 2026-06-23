@@ -1,0 +1,23 @@
+{
+    "bottom_shell_layers": "5",
+    "enable_support": "1",
+    "from": "User",
+    "inherits": "0.20mm Standard @BBL A1",
+    "name": "0.20mm Standard @BBL A1 - Копировать2",
+    "print_extruder_id": [
+        "1"
+    ],
+    "print_extruder_variant": [
+        "Direct Drive Standard"
+    ],
+    "print_settings_id": "0.20mm Standard @BBL A1 - Копировать2",
+    "skeleton_infill_density": "30%",
+    "skin_infill_density": "30%",
+    "skirt_loops": "1",
+    "sparse_infill_density": "30%",
+    "sparse_infill_pattern": "triangles",
+    "support_critical_regions_only": "1",
+    "support_style": "tree_organic",
+    "support_threshold_angle": "20",
+    "version": "2.7.0.7"
+}
