@@ -391,14 +391,26 @@ def bore_axis(args) -> float:
     return args.hole / 2 + FLOOR_DEFAULT if args.bore_z is None else args.bore_z
 
 
+MIN_ROOF = 1.0        # сколько материала обязательно оставить над коньком
+
+
 def bore_relief(args) -> float:
     """
-    Подъём конька. По умолчанию полный «домик» на 45°: скаты выходят из
-    точек, где касательная к кругу идёт под 45°, и сходятся на высоте
-    r * sqrt(2). Горизонтального моста не остаётся вовсе — провисать нечему.
+    Подъём конька. По умолчанию берётся максимум, который влезает:
+    полный «домик» на 45° (скаты из точек, где касательная к кругу идёт
+    под 45°, сходятся на высоте r * sqrt(2)) — если над ним остаётся
+    хотя бы MIN_ROOF материала. Не влезает полный — ставится урезанный,
+    не влезает никакой — ноль, и канал остаётся обычным кругом.
+
+    Полный конёк убирает горизонтальный мост совсем, урезанный оставляет
+    площадку шириной 2 * (full - relief) — провисает, но заметно меньше.
     """
+    if args.bore_relief is not None:
+        return args.bore_relief
     full = args.hole / 2 * (2 ** 0.5 - 1)
-    return full if args.bore_relief is None else args.bore_relief
+    lowest = args.height if args.mode == "flat" else args.height - args.down
+    room = lowest - (bore_axis(args) + args.hole / 2) - MIN_ROOF
+    return max(0.0, min(full, room))
 
 
 def floor_under_hole(args) -> float:
@@ -633,7 +645,7 @@ def main() -> None:
     ap.add_argument("--file", type=Path, help="файл со списком имён, по одному в строке")
     ap.add_argument("--hole", type=float, default=7.8, help="диаметр отверстия, мм")
     ap.add_argument("--size", type=float, default=12.0, help="размер шрифта")
-    ap.add_argument("--height", type=float, default=12.0, help="базовая высота, мм")
+    ap.add_argument("--height", type=float, default=10.5, help="базовая высота, мм")
     ap.add_argument("--up", type=float, default=0.9, help="прибавка высоты, зигзаг вверх")
     ap.add_argument("--down", type=float, default=0.25, help="убавка высоты, зигзаг вниз")
     ap.add_argument("--spacing", type=float, default=0.84,
