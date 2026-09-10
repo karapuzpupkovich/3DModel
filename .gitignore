@@ -3,3 +3,4 @@ __pycache__/
 *.FCBak
 .font_calibration.json
 result.json
+.batch.log

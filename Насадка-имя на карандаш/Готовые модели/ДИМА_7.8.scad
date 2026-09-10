@@ -21,6 +21,12 @@ x_pos    = [-24.604, -12.984, -2.596, 12.104];      // X-позиция кажд
 groups   = [[9.75, [1, 3]], [10.9, [0, 2]]];    // [[высота, [индексы букв этой высоты]], ...]
 y_off    = -4.3333;      // сдвиг по Y: центрирует текст на оси отверстия
 
+// Перемычки под «висящими» частями глифов: точки у Ё, бревис у Й. Это
+// отдельные контуры, без перемычки они выдавливаются в самостоятельные
+// столбики и на печати остаются лежать на столе.
+// Формат: [[индекс буквы, x0, y0, x1, y1], ...] в мм от начала буквы.
+bridges  = [];
+
 /* [Геометрия] */
 font_name = "Shantell Sans:style=ExtraBold";     // «nome_font», формат fontconfig: Семейство:style=...
 text_size = 12.0;     // «dimensione testo»
@@ -31,10 +37,16 @@ text_fn = 64;         // гладкость контуров букв
 hole_fn = 96;             // гладкость канала под карандаш
 
 module word_2d(idx) {
-    for (i = idx)
+    for (i = idx) {
         translate([x_pos[i], y_off])
             text(letters[i], font = font_name, size = text_size,
                  halign = "left", valign = "baseline", $fn = text_fn);
+
+        for (b = bridges)
+            if (b[0] == i)
+                translate([x_pos[i] + b[1], y_off + b[2]])
+                    square([b[3] - b[1], b[4] - b[2]]);
+    }
 }
 
 module pencil_name() {

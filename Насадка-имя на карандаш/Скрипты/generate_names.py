@@ -33,6 +33,7 @@ import tempfile
 from pathlib import Path
 
 from fontTools.pens.boundsPen import BoundsPen
+from fontTools.pens.recordingPen import RecordingPen
 from fontTools.ttLib import TTFont
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -242,13 +243,18 @@ def run_openscad(openscad: Path, scad: Path, stl: Path) -> None:
 # --------------------------------------------------------------------------- #
 #  Раскладка
 # --------------------------------------------------------------------------- #
-def layout(text: str, font: TTFont, upsize: float, size: float, spacing: float):
+def layout(text: str, font: TTFont, upsize: float, size: float, factors):
     """
     Позиции букв по X и вертикальное центрирование.
 
-    Кернинг (GPOS) не применяется — буквы и так намеренно перекрываются
-    множителем spacing, чтобы слово стало единым телом. Из-за этого ширина
-    может на 1-3% отличаться от оригинала MakerWorld.
+    `factors` — множитель шага для каждого стыка (len(text) - 1 штук) либо
+    одно число на все стыки. Отдельный множитель на стык нужен потому, что
+    пары вроде «ТО» в рукописном шрифте расходятся сильнее прочих: ужимать
+    ради них всё слово — значит слепить остальные буквы в кашу.
+
+    Кернинг (GPOS) не применяется — буквы и так намеренно перекрываются,
+    чтобы слово стало единым телом. Из-за этого ширина может на 1-3%
+    отличаться от оригинала MakerWorld.
     """
     cmap = font.getBestCmap()
     hmtx = font["hmtx"]
@@ -258,16 +264,19 @@ def layout(text: str, font: TTFont, upsize: float, size: float, spacing: float):
     if missing:
         sys.exit(f"В шрифте нет символов: {' '.join(missing)}")
 
+    if not isinstance(factors, (list, tuple)):
+        factors = [factors] * max(0, len(text) - 1)
+
     mm = size / upsize  # мм на одну font-unit
 
     pen_x, xs_units, bounds = 0.0, [], []
-    for ch in text:
+    for i, ch in enumerate(text):
         gname = cmap[ord(ch)]
-        xs_units.append(pen_x * spacing)
+        xs_units.append(pen_x)
         pen = BoundsPen(glyphs)
         glyphs[gname].draw(pen)
         bounds.append(pen.bounds)  # None у пробела
-        pen_x += hmtx[gname][0]
+        pen_x += hmtx[gname][0] * (factors[i] if i < len(factors) else 1.0)
 
     xs_mm = [u * mm for u in xs_units]
     ink_lo = min(xs_mm[i] + b[0] * mm for i, b in enumerate(bounds) if b)
@@ -284,6 +293,66 @@ def heights(n: int, body_h: float, up: float, down: float, mode: str):
     if mode == "flat":
         return [body_h] * n
     return [body_h + up if i % 2 == 0 else body_h - down for i in range(n)]
+
+
+def contour_boxes(glyphs, gname: str, mm: float) -> list[list[float]]:
+    """Габарит каждого отдельного контура глифа, в мм."""
+    pen = RecordingPen()
+    glyphs[gname].draw(pen)
+    boxes, cur = [], []
+    for op, args in pen.value:
+        cur.append((op, args))
+        if op in ("closePath", "endPath"):
+            pts = [p for _, a in cur for p in a if isinstance(p, tuple)]
+            if pts:
+                boxes.append([min(p[0] for p in pts) * mm, min(p[1] for p in pts) * mm,
+                              max(p[0] for p in pts) * mm, max(p[1] for p in pts) * mm])
+            cur = []
+    return boxes
+
+
+def diacritic_bridges(text: str, font: TTFont, mm: float, width_frac: float = 0.6,
+                      min_width: float = 1.5, bite: float = 1.0) -> list[list]:
+    """
+    Перемычки под «висящими» частями букв.
+
+    Точки у Ё и бревис у Й — отдельные контуры глифа. После выдавливания они
+    становятся самостоятельными столбиками: к букве не крепятся и на печати
+    просто остаются лежать на столе. Ищем такие контуры (транзитивно наращивая
+    «тело» буквы по пересечению диапазонов Y) и ставим под каждый прямоугольник,
+    сшивающий его с телом. Перемычка заходит в тело на `bite` мм — запас на
+    случай, если верх буквы под диакритикой ниже её самой высокой точки.
+
+    Возвращает [[индекс буквы, x0, y0, x1, y1], ...] в мм от начала буквы.
+    """
+    cmap = font.getBestCmap()
+    glyphs = font.getGlyphSet()
+    out = []
+    for i, ch in enumerate(text):
+        boxes = contour_boxes(glyphs, cmap[ord(ch)], mm)
+        if len(boxes) < 2:
+            continue
+        body = [max(boxes, key=lambda b: (b[2] - b[0]) * (b[3] - b[1]))]
+        rest = [b for b in boxes if b is not body[0]]
+        grew = True
+        while grew:
+            grew = False
+            lo = min(b[1] for b in body)
+            hi = max(b[3] for b in body)
+            for b in list(rest):
+                if b[1] <= hi and b[3] >= lo:
+                    body.append(b)
+                    rest.remove(b)
+                    grew = True
+        if not rest:
+            continue
+        top = max(b[3] for b in body)
+        for b in rest:
+            w = max(min_width, (b[2] - b[0]) * width_frac)
+            cx = (b[0] + b[2]) / 2
+            out.append([i, round(cx - w / 2, 4), round(top - bite, 4),
+                        round(cx + w / 2, 4), round(b[1] + 0.05, 4)])
+    return out
 
 
 def roof_over_hole(args) -> float:
@@ -315,17 +384,73 @@ def scad_literal(value) -> str:
 # --------------------------------------------------------------------------- #
 #  Основной сценарий
 # --------------------------------------------------------------------------- #
-def render(text: str, spacing: float, args, openscad: Path, font: TTFont,
+def pair_is_joined(pair: str, factor: float, args, openscad: Path, font: TTFont,
+                   family: str, upsize: float) -> bool:
+    """Слипаются ли две соседние буквы при данном множителе шага."""
+    mm = args.size / upsize
+    adv = font["hmtx"][font.getBestCmap()[ord(pair[0])]][0] * mm * factor
+    bridges = [] if args.no_bridges else diacritic_bridges(
+        pair, font, mm, min_width=args.bridge_width)
+
+    parts = []
+    for i, ch in enumerate(pair):
+        dx = adv if i else 0.0
+        parts.append(f'translate([{dx:.4f}, 0]) text("{ch}", font="{family}", '
+                     f'size={args.size}, halign="left", valign="baseline");')
+        for b in bridges:
+            if b[0] == i:
+                parts.append(f'translate([{dx + b[1]:.4f}, {b[2]:.4f}]) '
+                             f'square([{b[3]-b[1]:.4f}, {b[4]-b[2]:.4f}]);')
+    body = f"$fn={args.fit_fn};\nlinear_extrude(2) {{\n" + "\n".join(parts) + "\n}\n"
+
+    with tempfile.TemporaryDirectory(prefix="scadpair_") as tmp:
+        scad, stl = Path(tmp) / "p.scad", Path(tmp) / "p.stl"
+        scad.write_text(body, encoding="utf-8")
+        run_openscad(openscad, scad, stl)
+        return count_shells(read_stl(stl)) == 1
+
+
+def fit_gaps(text: str, args, openscad: Path, font: TTFont, family: str,
+             upsize: float) -> list[float]:
+    """
+    Подбирает множитель шага отдельно для каждого стыка букв.
+
+    Проверка идёт на паре букв и на черновом $fn — это дёшево, а тессиляция
+    там срезает дуги внутрь, так что слипшееся на черновике слипнется и на
+    чистовом. Большинство стыков проходит с первого раза.
+    """
+    factors = []
+    for i in range(len(text) - 1):
+        pair = text[i:i + 2]
+        f = args.spacing
+        while not pair_is_joined(pair, f, args, openscad, font, family, upsize):
+            f = round(f - args.fit_step, 4)
+            if f < args.min_spacing:
+                print(f"   {text}: пара «{pair}» не смыкается даже при "
+                      f"{args.min_spacing} — оставляю {args.min_spacing}")
+                f = args.min_spacing
+                break
+        factors.append(f)
+    tight = {text[i:i + 2]: f for i, f in enumerate(factors) if f < args.spacing}
+    if tight:
+        print("   ужаты стыки: " + ", ".join(f"«{p}» до {f}" for p, f in tight.items()))
+    return factors
+
+
+def render(text: str, spacing, args, openscad: Path, font: TTFont,
            family: str, upsize: float, fn: int):
     """Собирает .scad под заданный spacing и возвращает (текст scad, треугольники)."""
     x_pos, y_off, _ = layout(text, font, upsize, args.size, spacing)
     hs = heights(len(text), args.height, args.up, args.down, args.mode)
+    bridges = [] if args.no_bridges else diacritic_bridges(
+        text, font, args.size / upsize, min_width=args.bridge_width)
 
     scad_body = TEMPLATE.read_text(encoding="utf-8")
     for token, value in {
         "{{LETTERS}}": scad_literal(list(text)),
         "{{XPOS}}": scad_literal(x_pos),
         "{{GROUPS}}": scad_literal(height_groups(hs)),
+        "{{BRIDGES}}": scad_literal(bridges),
         "{{YOFF}}": scad_literal(y_off),
         "{{FONT}}": scad_literal(family),
         "{{SIZE}}": scad_literal(args.size),
@@ -349,20 +474,8 @@ def build_one(name: str, args, openscad: Path, font: TTFont, family: str,
               upsize: float, out_dir: Path) -> None:
     text = name if args.keep_case else name.upper()
 
-    spacing = args.spacing
-
-    # Подбор ведём на черновой сетке: она заведомо «тоньше» чистовой
-    # (хорды срезают дуги внутрь), поэтому слипшееся на черновике
-    # гарантированно слипнется и на чистовом $fn.
-    if args.auto_fit:
-        for attempt in range(args.fit_tries):
-            _, draft = render(text, spacing, args, openscad, font, family,
-                              upsize, args.fit_fn)
-            shells = count_shells(draft)
-            if shells == 1 or attempt == args.fit_tries - 1:
-                break
-            spacing = round(spacing - args.fit_step, 4)
-            print(f"   {text}: {shells} тел — сжимаю до spacing {spacing}")
+    spacing = (fit_gaps(text, args, openscad, font, family, upsize)
+               if args.auto_fit else args.spacing)
 
     scad_body, tris = render(text, spacing, args, openscad, font, family,
                              upsize, args.fn)
@@ -377,15 +490,19 @@ def build_one(name: str, args, openscad: Path, font: TTFont, family: str,
 
     lo, hi = bbox(tris)
     flag = "OK " if shells == 1 else "!! "
+    n_bridges = 0 if args.no_bridges else len(
+        diacritic_bridges(text, font, args.size / upsize, min_width=args.bridge_width))
+    tightest = min(spacing) if isinstance(spacing, list) and spacing else args.spacing
     print(
         f"{flag}{out_stl.name:<22} {hi[0]-lo[0]:6.2f} x {hi[1]-lo[1]:5.2f} x "
         f"{hi[2]-lo[2]:5.2f} мм   тр-ков {len(tris):6d}   тел {shells}   "
-        f"spacing {spacing}   свод {roof_over_hole(args):.2f} мм"
+        f"шаг {args.spacing}/{tightest}   свод {roof_over_hole(args):.2f} мм"
+        + (f"   перемычек {n_bridges}" if n_bridges else "")
     )
     if shells > 1:
         print(
-            f"   ВНИМАНИЕ: буквы не соприкасаются ({shells} отдельных тел) даже "
-            f"при spacing {spacing}. Задайте --spacing меньше вручную."
+            f"   ВНИМАНИЕ: буквы не соприкасаются ({shells} отдельных тел). "
+            f"Уменьшите --min-spacing или задайте --spacing вручную."
         )
     roof = roof_over_hole(args)
     if roof < 0.8:
@@ -414,10 +531,14 @@ def main() -> None:
                     help="не подбирать spacing автоматически до единого тела")
     ap.add_argument("--fit-step", type=float, default=0.02,
                     help="шаг уменьшения spacing при автоподборе")
-    ap.add_argument("--fit-tries", type=int, default=8,
-                    help="сколько попыток автоподбора делать")
+    ap.add_argument("--min-spacing", type=float, default=0.5,
+                    help="ниже этого множитель шага стыка не опускается")
     ap.add_argument("--fit-fn", type=int, default=12,
                     help="$fn для черновых прогонов автоподбора")
+    ap.add_argument("--no-bridges", action="store_true",
+                    help="не подставлять перемычки под точки Ё и бревис Й")
+    ap.add_argument("--bridge-width", type=float, default=1.5,
+                    help="минимальная ширина перемычки под диакритикой, мм")
     ap.add_argument("--font", default=DEFAULT_FONT, help="имя файла шрифта в fonts/")
     ap.add_argument("--fn", type=int, default=64,
                     help="$fn контуров букв (у эталона MakerWorld примерно 64)")

@@ -80,12 +80,18 @@ def main() -> None:
     ap.add_argument("--azim", type=float, default=-30.0)
     ap.add_argument("--elev", type=float, default=62.0)
     ap.add_argument("--color", nargs=3, type=float, default=(1.0, 0.62, 0.10))
+    ap.add_argument("--cols", type=int, default=1, help="сколько колонок в сетке")
     args = ap.parse_args()
 
     labels = args.labels or [p.stem for p in args.stl]
     n = len(args.stl)
-    fig, axes = plt.subplots(n, 1, figsize=(11, 2.9 * n), facecolor="#1c1c1c")
-    axes = np.atleast_1d(axes)
+    cols = max(1, args.cols)
+    rows = -(-n // cols)
+    fig, axes = plt.subplots(rows, cols, figsize=(11 * cols, 2.9 * rows),
+                             facecolor="#1c1c1c")
+    axes = np.atleast_1d(axes).ravel()
+    for extra in axes[n:]:
+        extra.axis("off")
 
     for ax, path, label in zip(axes, args.stl, labels):
         tris = np.array(read_stl(path), dtype=float)
