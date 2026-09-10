@@ -281,12 +281,24 @@ def layout(text: str, font: TTFont, upsize: float, size: float, factors):
     xs_mm = [u * mm for u in xs_units]
     ink_lo = min(xs_mm[i] + b[0] * mm for i, b in enumerate(bounds) if b)
     ink_hi = max(xs_mm[i] + b[2] * mm for i, b in enumerate(bounds) if b)
-    y_lo = min(b[1] for b in bounds if b) * mm
-    y_hi = max(b[3] for b in bounds if b) * mm
+
+    # По вертикали центрируем ТЕЛА букв, а не полный габарит с диакритикой.
+    # Канал под карандаш идёт по Y = 0, и если учитывать бревис Й, центр
+    # уезжает вверх на пол-высоты диакритики — канал вылезает над буквами
+    # и вскрывает их сверху жёлобом. Диакритика просто торчит выше, как ей
+    # и положено.
+    body_y = []
+    for ch, b in zip(text, bounds):
+        if b is None:
+            continue
+        blo, bhi, _ = floating_parts(font, ch, mm)
+        body_y.append((b[1] * mm, b[3] * mm) if blo is None else (blo, bhi))
+    y_lo = min(v[0] for v in body_y)
+    y_hi = max(v[1] for v in body_y)
 
     center = (ink_lo + ink_hi) / 2
     x_pos = [round(v - center, 4) for v in xs_mm]
-    return x_pos, round(-(y_lo + y_hi) / 2, 4), ink_hi - ink_lo
+    return x_pos, round(-(y_lo + y_hi) / 2, 4), ink_hi - ink_lo, y_hi - y_lo
 
 
 def heights(n: int, body_h: float, up: float, down: float, mode: str):
@@ -316,12 +328,12 @@ def floating_parts(font: TTFont, ch: str, mm: float):
     Делит контуры глифа на тело и «висящие» части (точки Ё, бревис Й).
 
     Тело наращивается транзитивно от самого крупного контура по пересечению
-    диапазонов Y. Возвращает (верх тела, [габариты висящих частей]);
-    если висящих нет — (None, []).
+    диапазонов Y. Возвращает (низ тела, верх тела, [габариты висящих частей]);
+    если висящих нет — (None, None, []).
     """
     boxes = contour_boxes(font.getGlyphSet(), font.getBestCmap()[ord(ch)], mm)
     if len(boxes) < 2:
-        return None, []
+        return None, None, []
     body = [max(boxes, key=lambda b: (b[2] - b[0]) * (b[3] - b[1]))]
     rest = [b for b in boxes if b is not body[0]]
     grew = True
@@ -335,8 +347,8 @@ def floating_parts(font: TTFont, ch: str, mm: float):
                 rest.remove(b)
                 grew = True
     if not rest:
-        return None, []
-    return max(b[3] for b in body), rest
+        return None, None, []
+    return min(b[1] for b in body), max(b[3] for b in body), rest
 
 
 def diacritic_bridges(text: str, font: TTFont, mm: float, width_frac: float = 0.6,
@@ -355,7 +367,7 @@ def diacritic_bridges(text: str, font: TTFont, mm: float, width_frac: float = 0.
     """
     out = []
     for i, ch in enumerate(text):
-        top, rest = floating_parts(font, ch, mm)
+        _, top, rest = floating_parts(font, ch, mm)
         if top is None:
             continue
         for b in rest:
@@ -418,7 +430,7 @@ def pair_joint_ok(pair: str, factor: float, erode: float, args, openscad: Path,
         # Диакритику из теста выбрасываем: галочка над Й и точки над Ё к
         # соседней букве не крепятся, а их тонкие места ломают замер —
         # эрозия находит самое узкое место где угодно, а нам нужен стык.
-        top, _ = floating_parts(font, ch, mm)
+        _, top, _ = floating_parts(font, ch, mm)
         if top is not None:
             glyph = (f'intersection() {{ {glyph}; '
                      f'translate([-500, -500]) square([1000, {500 + top:.4f}]); }}')
@@ -504,7 +516,7 @@ def fit_gaps(text: str, args, openscad: Path, font: TTFont, family: str,
 def render(text: str, spacing, args, openscad: Path, font: TTFont,
            family: str, upsize: float, fn: int):
     """Собирает .scad под заданный spacing и возвращает (текст scad, треугольники)."""
-    x_pos, y_off, _ = layout(text, font, upsize, args.size, spacing)
+    x_pos, y_off, _, body_span = layout(text, font, upsize, args.size, spacing)
     hs = heights(len(text), args.height, args.up, args.down, args.mode)
     bridges = [] if args.no_bridges else diacritic_bridges(
         text, font, args.size / upsize, min_width=args.bridge_width)
@@ -531,7 +543,7 @@ def render(text: str, spacing, args, openscad: Path, font: TTFont,
         stl_tmp = Path(tmp) / "job.stl"
         scad_tmp.write_text(scad_body, encoding="utf-8")
         run_openscad(openscad, scad_tmp, stl_tmp)
-        return scad_body, read_stl(stl_tmp)
+        return scad_body, read_stl(stl_tmp), body_span
 
 
 def build_one(name: str, args, openscad: Path, font: TTFont, family: str,
@@ -541,8 +553,8 @@ def build_one(name: str, args, openscad: Path, font: TTFont, family: str,
     spacing = (fit_gaps(text, args, openscad, font, family, upsize)
                if args.auto_fit else args.spacing)
 
-    scad_body, tris = render(text, spacing, args, openscad, font, family,
-                             upsize, args.fn)
+    scad_body, tris, body_span = render(text, spacing, args, openscad, font,
+                                        family, upsize, args.fn)
     shells = count_shells(tris)
 
     stem = f"{text}_{args.hole:g}"
@@ -560,7 +572,8 @@ def build_one(name: str, args, openscad: Path, font: TTFont, family: str,
     print(
         f"{flag}{out_stl.name:<22} {hi[0]-lo[0]:6.2f} x {hi[1]-lo[1]:5.2f} x "
         f"{hi[2]-lo[2]:5.2f} мм   тр-ков {len(tris):6d}   тел {shells}   "
-        f"шаг {args.spacing}/{tightest}   свод {roof_over_hole(args):.2f} мм"
+        f"шаг {args.spacing}/{tightest}   свод {roof_over_hole(args):.2f}"
+        f" / стенка {body_span / 2 - args.hole / 2:.2f} мм"
         + (f"   перемычек {n_bridges}" if n_bridges else "")
     )
     if shells > 1:
@@ -568,6 +581,10 @@ def build_one(name: str, args, openscad: Path, font: TTFont, family: str,
             f"   ВНИМАНИЕ: буквы не соприкасаются ({shells} отдельных тел). "
             f"Уменьшите --min-spacing или задайте --spacing вручную."
         )
+    wall = body_span / 2 - args.hole / 2
+    if wall < 1.0:
+        print(f"   ВНИМАНИЕ: сбоку от канала всего {wall:.2f} мм — канал"
+              f" вскрывает буквы. Уменьшите --hole или увеличьте --size.")
     roof = roof_over_hole(args)
     if roof < 0.8:
         print(
