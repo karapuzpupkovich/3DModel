@@ -378,14 +378,42 @@ def diacritic_bridges(text: str, font: TTFont, mm: float, width_frac: float = 0.
     return out
 
 
+FLOOR_DEFAULT = 1.1   # пол под каналом; печатается на столе, тонким быть может
+
+
+def bore_axis(args) -> float:
+    """
+    Высота оси канала. По умолчанию — так, чтобы под каналом остался пол
+    FLOOR_DEFAULT, а весь остальной запас высоты ушёл наверх: снизу деталь
+    лежит на столе и тонкий пол там не мешает, а сверху нужно место под
+    конёк и слои над ним.
+    """
+    return args.hole / 2 + FLOOR_DEFAULT if args.bore_z is None else args.bore_z
+
+
+def bore_relief(args) -> float:
+    """
+    Подъём конька. По умолчанию полный «домик» на 45°: скаты выходят из
+    точек, где касательная к кругу идёт под 45°, и сходятся на высоте
+    r * sqrt(2). Горизонтального моста не остаётся вовсе — провисать нечему.
+    """
+    full = args.hole / 2 * (2 ** 0.5 - 1)
+    return full if args.bore_relief is None else args.bore_relief
+
+
+def floor_under_hole(args) -> float:
+    """Материал от стола до низа канала."""
+    return bore_axis(args) - args.hole / 2
+
+
 def roof_over_hole(args) -> float:
     """
-    Толщина «свода» — материала над каналом у самых низких букв.
-    Это единственный навес в детали: он печатается мостом, поэтому от него
-    зависит, нужны ли поддержки и насколько ровным выйдет верх над каналом.
+    Толщина «свода» — материала над каналом у самых низких букв, с учётом
+    конька. Это единственный навес в детали: он печатается мостом, поэтому
+    от него зависит, нужны ли поддержки и ровным ли выйдет верх.
     """
     lowest = args.height if args.mode == "flat" else args.height - args.down
-    return lowest - (args.height / 2 + args.hole / 2)
+    return lowest - (bore_axis(args) + args.hole / 2 + bore_relief(args))
 
 
 def height_groups(hs):
@@ -532,6 +560,8 @@ def render(text: str, spacing, args, openscad: Path, font: TTFont,
         "{{SIZE}}": scad_literal(args.size),
         "{{BODY_H}}": scad_literal(args.height),
         "{{HOLE_D}}": scad_literal(args.hole),
+        "{{RELIEF}}": scad_literal(round(bore_relief(args), 4)),
+        "{{BORE_Z}}": scad_literal(bore_axis(args)),
         "{{FN}}": scad_literal(fn),
     }.items():
         scad_body = scad_body.replace(token, value)
@@ -572,7 +602,8 @@ def build_one(name: str, args, openscad: Path, font: TTFont, family: str,
     print(
         f"{flag}{out_stl.name:<22} {hi[0]-lo[0]:6.2f} x {hi[1]-lo[1]:5.2f} x "
         f"{hi[2]-lo[2]:5.2f} мм   тр-ков {len(tris):6d}   тел {shells}   "
-        f"шаг {args.spacing}/{tightest}   свод {roof_over_hole(args):.2f}"
+        f"шаг {args.spacing}/{tightest}   пол {floor_under_hole(args):.2f}"
+        f" / свод {roof_over_hole(args):.2f}"
         f" / стенка {body_span / 2 - args.hole / 2:.2f} мм"
         + (f"   перемычек {n_bridges}" if n_bridges else "")
     )
@@ -585,12 +616,12 @@ def build_one(name: str, args, openscad: Path, font: TTFont, family: str,
     if wall < 1.0:
         print(f"   ВНИМАНИЕ: сбоку от канала всего {wall:.2f} мм — канал"
               f" вскрывает буквы. Уменьшите --hole или увеличьте --size.")
-    roof = roof_over_hole(args)
-    if roof < 0.8:
-        print(
-            f"   ВНИМАНИЕ: над каналом всего {roof:.2f} мм ({roof / 0.2:.0f} слоёв "
-            f"по 0.2). Увеличьте --height или уменьшите --down/--hole."
-        )
+    for what, value in (("пол под каналом", floor_under_hole(args)),
+                        ("свод над каналом", roof_over_hole(args))):
+        if value < 1.0:
+            print(f"   ВНИМАНИЕ: {what} всего {value:.2f} мм "
+                  f"({value / 0.2:.0f} слоёв по 0.2) — тонко для печати. "
+                  f"Увеличьте --height.")
 
 
 def main() -> None:
@@ -602,7 +633,7 @@ def main() -> None:
     ap.add_argument("--file", type=Path, help="файл со списком имён, по одному в строке")
     ap.add_argument("--hole", type=float, default=7.8, help="диаметр отверстия, мм")
     ap.add_argument("--size", type=float, default=12.0, help="размер шрифта")
-    ap.add_argument("--height", type=float, default=10.0, help="базовая высота, мм")
+    ap.add_argument("--height", type=float, default=12.0, help="базовая высота, мм")
     ap.add_argument("--up", type=float, default=0.9, help="прибавка высоты, зигзаг вверх")
     ap.add_argument("--down", type=float, default=0.25, help="убавка высоты, зигзаг вниз")
     ap.add_argument("--spacing", type=float, default=0.84,
@@ -620,6 +651,10 @@ def main() -> None:
                     help="не подставлять перемычки под точки Ё и бревис Й")
     ap.add_argument("--bridge-width", type=float, default=1.5,
                     help="минимальная ширина перемычки под диакритикой, мм")
+    ap.add_argument("--bore-relief", type=float, default=None,
+                    help="конёк над каналом, мм (по умолчанию полный домик на 45°)")
+    ap.add_argument("--bore-z", type=float, default=None,
+                    help="высота оси канала, мм (по умолчанию середина тела)")
     ap.add_argument("--font", default=DEFAULT_FONT, help="имя файла шрифта в fonts/")
     ap.add_argument("--fn", type=int, default=64,
                     help="$fn контуров букв (у эталона MakerWorld примерно 64)")

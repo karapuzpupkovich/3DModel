@@ -252,6 +252,8 @@ def main() -> None:
     ap.add_argument("--hole", type=float, default=7.8)
     ap.add_argument("--per-plate", type=int, default=None,
                     help="максимум деталей на одну плиту")
+    ap.add_argument("--only", nargs="*", default=None, metavar="ИМЯ",
+                    help="взять только эти имена (для допечатки брака)")
     ap.add_argument("--gap", type=float, default=GAP, help="зазор между деталями, мм")
     ap.add_argument("--template", type=Path,
                     default=PROJECT_DIR / "Заготовки" / "ДИМА_7.4.3mf")
@@ -264,6 +266,13 @@ def main() -> None:
 
     people = [(fio, swaps.get(n, n)) for fio, n in read_names(args.csv)]
     counts = Counter(n for _, n in people)
+
+    if args.only:
+        want = {n.upper() for n in args.only}
+        missing = want - set(counts)
+        if missing:
+            sys.exit(f"Нет таких имён в списке группы: {', '.join(sorted(missing))}")
+        counts = Counter({n: c for n, c in counts.items() if n in want})
 
     items, sizes, sources = [], {}, {}
     for name, cnt in sorted(counts.items()):

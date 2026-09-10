@@ -33,6 +33,9 @@ text_size = {{SIZE}};     // «dimensione testo»
 body_h    = {{BODY_H}};   // «altezza nome» — базовая высота
 hole_d    = {{HOLE_D}};   // «diametro foro» — диаметр под карандаш
 
+bore_z      = {{BORE_Z}}; // высота оси канала над столом, мм
+bore_relief = {{RELIEF}}; // подъём конька над каналом, мм (0 — обычный круг)
+
 text_fn = {{FN}};         // гладкость контуров букв
 hole_fn = 96;             // гладкость канала под карандаш
 
@@ -49,6 +52,33 @@ module word_2d(idx) {
     }
 }
 
+// Профиль канала в поперечнике: круг под карандаш плюс «конёк» — крыша
+// на 45° над ним. Без конька верх канала печатается мостом и провисает
+// внутрь отверстия: сопли цепляют карандаш и царапают его. С коньком
+// свисания повисают ВЫШЕ окружности Ø hole_d и карандашу не мешают,
+// а сами скаты под 45° печатаются без поддержек.
+module bore_profile() {
+    r = hole_d / 2;
+    a = r / sqrt(2);              // точка, где касательная к кругу идёт под 45°
+    c = r + bore_relief;          // высота конька над осью
+    b = max(0.01, r * sqrt(2) - c);  // полуширина площадки на коньке
+
+    circle(d = hole_d, $fn = hole_fn);
+    if (bore_relief > 0)
+        polygon([[-a, a], [a, a], [b, c], [-b, c]]);
+}
+
+module bore() {
+    // rotate([0,90,0]) rotate([0,0,90]) переводит локальные (x,y,z)
+    // в глобальные (z,x,y): ось канала ложится вдоль X, а верх профиля
+    // смотрит вверх по Z.
+    translate([0, 0, bore_z])
+        rotate([0, 90, 0])
+            rotate([0, 0, 90])
+                linear_extrude(height = 4000, center = true)
+                    bore_profile();
+}
+
 module pencil_name() {
     difference() {
         union() {
@@ -57,9 +87,7 @@ module pencil_name() {
                     word_2d(g[1]);
         }
 
-        translate([-1000, 0, body_h / 2])
-            rotate([0, 90, 0])
-                cylinder(h = 2000, d = hole_d, $fn = hole_fn);
+        bore();
     }
 }
 
