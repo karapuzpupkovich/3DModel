@@ -286,6 +286,16 @@ def heights(n: int, body_h: float, up: float, down: float, mode: str):
     return [body_h + up if i % 2 == 0 else body_h - down for i in range(n)]
 
 
+def roof_over_hole(args) -> float:
+    """
+    Толщина «свода» — материала над каналом у самых низких букв.
+    Это единственный навес в детали: он печатается мостом, поэтому от него
+    зависит, нужны ли поддержки и насколько ровным выйдет верх над каналом.
+    """
+    lowest = args.height if args.mode == "flat" else args.height - args.down
+    return lowest - (args.height / 2 + args.hole / 2)
+
+
 def height_groups(hs):
     """[[высота, [индексы]], ...] — буквы одной высоты выдавливаются разом."""
     out: dict[float, list[int]] = {}
@@ -370,12 +380,18 @@ def build_one(name: str, args, openscad: Path, font: TTFont, family: str,
     print(
         f"{flag}{out_stl.name:<22} {hi[0]-lo[0]:6.2f} x {hi[1]-lo[1]:5.2f} x "
         f"{hi[2]-lo[2]:5.2f} мм   тр-ков {len(tris):6d}   тел {shells}   "
-        f"spacing {spacing}"
+        f"spacing {spacing}   свод {roof_over_hole(args):.2f} мм"
     )
     if shells > 1:
         print(
             f"   ВНИМАНИЕ: буквы не соприкасаются ({shells} отдельных тел) даже "
             f"при spacing {spacing}. Задайте --spacing меньше вручную."
+        )
+    roof = roof_over_hole(args)
+    if roof < 0.8:
+        print(
+            f"   ВНИМАНИЕ: над каналом всего {roof:.2f} мм ({roof / 0.2:.0f} слоёв "
+            f"по 0.2). Увеличьте --height или уменьшите --down/--hole."
         )
 
 
