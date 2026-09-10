@@ -311,6 +311,34 @@ def contour_boxes(glyphs, gname: str, mm: float) -> list[list[float]]:
     return boxes
 
 
+def floating_parts(font: TTFont, ch: str, mm: float):
+    """
+    Делит контуры глифа на тело и «висящие» части (точки Ё, бревис Й).
+
+    Тело наращивается транзитивно от самого крупного контура по пересечению
+    диапазонов Y. Возвращает (верх тела, [габариты висящих частей]);
+    если висящих нет — (None, []).
+    """
+    boxes = contour_boxes(font.getGlyphSet(), font.getBestCmap()[ord(ch)], mm)
+    if len(boxes) < 2:
+        return None, []
+    body = [max(boxes, key=lambda b: (b[2] - b[0]) * (b[3] - b[1]))]
+    rest = [b for b in boxes if b is not body[0]]
+    grew = True
+    while grew:
+        grew = False
+        lo = min(b[1] for b in body)
+        hi = max(b[3] for b in body)
+        for b in list(rest):
+            if b[1] <= hi and b[3] >= lo:
+                body.append(b)
+                rest.remove(b)
+                grew = True
+    if not rest:
+        return None, []
+    return max(b[3] for b in body), rest
+
+
 def diacritic_bridges(text: str, font: TTFont, mm: float, width_frac: float = 0.6,
                       min_width: float = 1.5, bite: float = 1.0) -> list[list]:
     """
@@ -325,28 +353,11 @@ def diacritic_bridges(text: str, font: TTFont, mm: float, width_frac: float = 0.
 
     Возвращает [[индекс буквы, x0, y0, x1, y1], ...] в мм от начала буквы.
     """
-    cmap = font.getBestCmap()
-    glyphs = font.getGlyphSet()
     out = []
     for i, ch in enumerate(text):
-        boxes = contour_boxes(glyphs, cmap[ord(ch)], mm)
-        if len(boxes) < 2:
+        top, rest = floating_parts(font, ch, mm)
+        if top is None:
             continue
-        body = [max(boxes, key=lambda b: (b[2] - b[0]) * (b[3] - b[1]))]
-        rest = [b for b in boxes if b is not body[0]]
-        grew = True
-        while grew:
-            grew = False
-            lo = min(b[1] for b in body)
-            hi = max(b[3] for b in body)
-            for b in list(rest):
-                if b[1] <= hi and b[3] >= lo:
-                    body.append(b)
-                    rest.remove(b)
-                    grew = True
-        if not rest:
-            continue
-        top = max(b[3] for b in body)
         for b in rest:
             w = max(min_width, (b[2] - b[0]) * width_frac)
             cx = (b[0] + b[2]) / 2
@@ -384,30 +395,69 @@ def scad_literal(value) -> str:
 # --------------------------------------------------------------------------- #
 #  Основной сценарий
 # --------------------------------------------------------------------------- #
-def pair_is_joined(pair: str, factor: float, args, openscad: Path, font: TTFont,
-                   family: str, upsize: float) -> bool:
-    """Слипаются ли две соседние буквы при данном множителе шага."""
+def pair_joint_ok(pair: str, factor: float, erode: float, args, openscad: Path,
+                  font: TTFont, family: str, upsize: float) -> bool:
+    """
+    Достаточно ли толстый перешеек между двумя соседними буквами.
+
+    Меряем эрозией ОБЪЕДИНЕНИЯ пары: `offset(r = -erode)` съедает по `erode`
+    со всех сторон, и если после этого пара осталась единым непустым телом,
+    значит самое узкое место шире `2 * erode`. Именно там деталь и рвётся —
+    ломается не пересечение букв, а самая тонкая перемычка их объединения.
+
+    При `erode = 0` это вырождается в обычную проверку «слиплось или нет».
+    """
     mm = args.size / upsize
     adv = font["hmtx"][font.getBestCmap()[ord(pair[0])]][0] * mm * factor
-    bridges = [] if args.no_bridges else diacritic_bridges(
-        pair, font, mm, min_width=args.bridge_width)
 
     parts = []
     for i, ch in enumerate(pair):
         dx = adv if i else 0.0
-        parts.append(f'translate([{dx:.4f}, 0]) text("{ch}", font="{family}", '
-                     f'size={args.size}, halign="left", valign="baseline");')
-        for b in bridges:
-            if b[0] == i:
-                parts.append(f'translate([{dx + b[1]:.4f}, {b[2]:.4f}]) '
-                             f'square([{b[3]-b[1]:.4f}, {b[4]-b[2]:.4f}]);')
-    body = f"$fn={args.fit_fn};\nlinear_extrude(2) {{\n" + "\n".join(parts) + "\n}\n"
+        glyph = (f'text("{ch}", font="{family}", size={args.size}, '
+                 f'halign="left", valign="baseline")')
+        # Диакритику из теста выбрасываем: галочка над Й и точки над Ё к
+        # соседней букве не крепятся, а их тонкие места ломают замер —
+        # эрозия находит самое узкое место где угодно, а нам нужен стык.
+        top, _ = floating_parts(font, ch, mm)
+        if top is not None:
+            glyph = (f'intersection() {{ {glyph}; '
+                     f'translate([-500, -500]) square([1000, {500 + top:.4f}]); }}')
+        parts.append(f'translate([{dx:.4f}, 0]) {glyph};')
+    shape = "union() {\n" + "\n".join(parts) + "\n}"
+    if erode > 0:
+        shape = f"offset(r = -{erode:.4f}) {shape}"
+    body = f"$fn={args.fit_fn};\nlinear_extrude(2) {shape}\n"
 
     with tempfile.TemporaryDirectory(prefix="scadpair_") as tmp:
         scad, stl = Path(tmp) / "p.scad", Path(tmp) / "p.stl"
         scad.write_text(body, encoding="utf-8")
-        run_openscad(openscad, scad, stl)
-        return count_shells(read_stl(stl)) == 1
+        res = subprocess.run([str(openscad), "-o", str(stl), str(scad)],
+                             capture_output=True, text=True,
+                             encoding="utf-8", errors="replace")
+        if res.returncode != 0 or not stl.exists():
+            return False           # пустой результат — эрозия съела всё
+        tris = read_stl(stl)
+        return bool(tris) and count_shells(tris) == 1
+
+
+def largest_passing(test, lo: float, hi: float, steps: int = 6):
+    """
+    Наибольший множитель в [lo, hi], проходящий тест, или None.
+
+    Тест монотонен: чем меньше множитель, тем плотнее буквы и тем толще
+    перешеек, поэтому годится обычный двоичный поиск.
+    """
+    if test(hi):
+        return hi
+    if not test(lo):
+        return None
+    for _ in range(steps):
+        mid = (lo + hi) / 2
+        if test(mid):
+            lo = mid
+        else:
+            hi = mid
+    return round(lo, 3)
 
 
 def fit_gaps(text: str, args, openscad: Path, font: TTFont, family: str,
@@ -415,25 +465,39 @@ def fit_gaps(text: str, args, openscad: Path, font: TTFont, family: str,
     """
     Подбирает множитель шага отдельно для каждого стыка букв.
 
-    Проверка идёт на паре букв и на черновом $fn — это дёшево, а тессиляция
-    там срезает дуги внутрь, так что слипшееся на черновике слипнется и на
-    чистовом. Большинство стыков проходит с первого раза.
+    Критерий — не «слиплось», а «перешеек не тоньше --weld». Разница
+    существенная: просто соприкоснуться буквы могут по касательной, и такой
+    стык отломится. Проверка идёт на паре букв и на черновом $fn — дёшево,
+    а тессиляция там срезает дуги внутрь, так что результат консервативен.
     """
-    factors = []
+    erode = args.weld / 2
+    factors, weak = [], []
+
     for i in range(len(text) - 1):
         pair = text[i:i + 2]
-        f = args.spacing
-        while not pair_is_joined(pair, f, args, openscad, font, family, upsize):
-            f = round(f - args.fit_step, 4)
-            if f < args.min_spacing:
-                print(f"   {text}: пара «{pair}» не смыкается даже при "
-                      f"{args.min_spacing} — оставляю {args.min_spacing}")
+
+        def test(f, e=erode, p=pair):
+            return pair_joint_ok(p, f, e, args, openscad, font, family, upsize)
+
+        f = largest_passing(test, args.min_spacing, args.spacing)
+        if f is None:
+            # Нужную толщину не дать при любом шаге — отступаем к «лишь бы
+            # слиплось», но говорим об этом вслух.
+            f = largest_passing(lambda v, p=pair: pair_joint_ok(
+                p, v, 0.0, args, openscad, font, family, upsize),
+                args.min_spacing, args.spacing)
+            weak.append(pair)
+            if f is None:
                 f = args.min_spacing
-                break
         factors.append(f)
-    tight = {text[i:i + 2]: f for i, f in enumerate(factors) if f < args.spacing}
-    if tight:
-        print("   ужаты стыки: " + ", ".join(f"«{p}» до {f}" for p, f in tight.items()))
+
+    if any(f < args.spacing for f in factors):
+        print("   стыки: " + " · ".join(
+            f"{text[i:i + 2]} {f}" + ("←" if f < args.spacing else "")
+            for i, f in enumerate(factors)))
+    if weak:
+        print(f"   ВНИМАНИЕ: стыки {', '.join('«' + p + '»' for p in weak)} тоньше "
+              f"{args.weld} мм при любом шаге — держатся, но это слабое место")
     return factors
 
 
@@ -529,10 +593,10 @@ def main() -> None:
     ap.add_argument("--mode", choices=("zigzag", "flat"), default="zigzag")
     ap.add_argument("--no-auto-fit", dest="auto_fit", action="store_false",
                     help="не подбирать spacing автоматически до единого тела")
-    ap.add_argument("--fit-step", type=float, default=0.02,
-                    help="шаг уменьшения spacing при автоподборе")
     ap.add_argument("--min-spacing", type=float, default=0.5,
                     help="ниже этого множитель шага стыка не опускается")
+    ap.add_argument("--weld", type=float, default=1.2,
+                    help="минимальная толщина перешейка на стыке букв, мм")
     ap.add_argument("--fit-fn", type=int, default=12,
                     help="$fn для черновых прогонов автоподбора")
     ap.add_argument("--no-bridges", action="store_true",
