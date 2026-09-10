@@ -44,7 +44,6 @@ OVERRIDES = {
     "enable_support": "0",
     "ironing_type": "top",           # глажка верхних поверхностей — гладкий верх
     "sparse_infill_density": "25%",  # плотнее опора под верхней коркой
-    "brim_type": "auto_brim",
 }
 
 MODEL_NS = (
@@ -190,14 +189,87 @@ def model_settings_xml(name: str, face_count: int, offset) -> str:
 """
 
 
-def load_profile(template: Path, supports: str, extra: dict[str, str]) -> dict:
+BBL_PROFILES = [
+    Path(r"C:\Program Files\Bambu Studio\resources\profiles\BBL"),
+    Path(r"C:\Program Files (x86)\Bambu Studio\resources\profiles\BBL"),
+]
+
+# Служебные поля пресета, а не настройки печати.
+PRESET_META = {"inherits", "name", "from", "type", "instantiation",
+               "setting_id", "version"}
+
+
+def resolve_system_preset(kind: str, name: str) -> dict:
+    """
+    Разворачивает системный пресет Bambu Studio по цепочке `inherits`.
+    kind: process | filament | machine.
+    """
+    root = next((p for p in BBL_PROFILES if p.is_dir()), None)
+    if root is None:
+        return {}
+    chain = []
+    while name:
+        f = root / kind / f"{name}.json"
+        if not f.exists():
+            return {}
+        data = json.loads(f.read_text(encoding="utf-8"))
+        chain.append(data)
+        name = data.get("inherits")
+    merged: dict = {}
+    for data in reversed(chain):
+        merged.update(data)
+    return {k: v for k, v in merged.items() if k not in PRESET_META}
+
+
+def _norm(value) -> str:
+    """Профили хранят одиночные значения то строкой, то списком из одного."""
+    if isinstance(value, list) and len(value) == 1:
+        return str(value[0])
+    if isinstance(value, (list, dict)):
+        return json.dumps(value, ensure_ascii=False, sort_keys=True)
+    return str(value)
+
+
+def mark_differences(cfg: dict, changed: set[str]) -> list[str]:
+    """
+    Заполняет `different_settings_to_system` — список ключей, которыми проект
+    отличается от системного пресета, по слоту: [процесс, прутки..., принтер].
+
+    Без него Bambu Studio при открытии проекта разрешает `print_settings_id`
+    в системный пресет и наши значения молча выбрасывает: пустой список
+    означает «ничего не отличается». Именно поэтому глажка не доезжала.
+    """
+    system = resolve_system_preset("process", cfg.get("print_settings_id", ""))
+    if system:
+        # Перечисляем только ключи самого пресета процесса и только те, что
+        # реально отличаются: ключ, которого в пресете нет (как brim_type —
+        # он живёт в дефолтах кода), в этот список ставить нельзя.
+        keys = sorted(k for k in changed
+                      if k in system and _norm(cfg[k]) != _norm(system[k]))
+        outside = sorted(k for k in changed if k not in system)
+        if outside:
+            print(f"  примечание: {', '.join(outside)} — не входят в пресет "
+                  f"процесса, Bambu Studio возьмёт их из дефолтов")
+    else:
+        keys = sorted(changed)  # пресет не нашли — перечисляем всё, что трогали
+
+    n_filaments = max(1, len(cfg.get("filament_settings_id", [""])))
+    cfg["different_settings_to_system"] = [";".join(keys)] + [""] * n_filaments + [""]
+    return keys
+
+
+def load_profile(template: Path, supports: str, extra: dict[str, str]) -> tuple[dict, list[str]]:
     with zipfile.ZipFile(template) as z:
         cfg = json.loads(z.read("Metadata/project_settings.config").decode("utf-8"))
+
+    changed = set(OVERRIDES) | set(extra)
     cfg.update(OVERRIDES)
     if supports == "auto":
         cfg["enable_support"] = "1"
+        changed.add("enable_support")
     cfg.update(extra)
-    return cfg
+
+    return cfg, mark_differences(cfg, changed)
 
 
 def build(stl: Path, out: Path, profile: dict, app_version: str) -> None:
@@ -257,14 +329,20 @@ def main() -> None:
         k, v = item.split("=", 1)
         extra[k.strip()] = v.strip()
 
-    profile = load_profile(args.template, args.supports, extra)
+    profile, diff_keys = load_profile(args.template, args.supports, extra)
     app_version = profile.get("version", "02.07.01.57")
 
     print(f"Профиль: {profile.get('printer_settings_id')} / "
           f"{profile.get('print_settings_id')} / "
           f"{', '.join(profile.get('filament_settings_id', []))}")
     print(f"Поддержки: {'включены' if profile['enable_support'] == '1' else 'выключены'}"
-          f"   заполнение: {profile['sparse_infill_density']}\n")
+          f"   заполнение: {profile['sparse_infill_density']}"
+          f"   глажка: {profile['ironing_type']}")
+    if diff_keys:
+        print("Отличия от системного пресета (Bambu Studio покажет пресет "
+              f"изменённым): {', '.join(diff_keys)}\n")
+    else:
+        print("Отличий от системного пресета нет.\n")
 
     for stl in args.stl:
         if not stl.exists():
