@@ -282,19 +282,26 @@ def layout(text: str, font: TTFont, upsize: float, size: float, factors):
     ink_lo = min(xs_mm[i] + b[0] * mm for i, b in enumerate(bounds) if b)
     ink_hi = max(xs_mm[i] + b[2] * mm for i, b in enumerate(bounds) if b)
 
-    # По вертикали центрируем ТЕЛА букв, а не полный габарит с диакритикой.
-    # Канал под карандаш идёт по Y = 0, и если учитывать бревис Й, центр
-    # уезжает вверх на пол-высоты диакритики — канал вылезает над буквами
-    # и вскрывает их сверху жёлобом. Диакритика просто торчит выше, как ей
-    # и положено.
+    # По вертикали канал ставится в ОБЩУЮ ПОЛОСУ всех букв: от самого
+    # высокого низа до самого низкого верха. Только так у каждой буквы
+    # под каналом и над ним остаётся одинаковый запас.
+    #
+    # Считать по общему габариту нельзя, и это два разных бага:
+    #  * бревис Й задирает верх — центр уезжает вверх, канал вылезает
+    #    над буквами и вскрывает их сверху (лечится исключением диакритики);
+    #  * хвост Д опускает низ на 3.3 мм — центр уезжает вниз, и у всех
+    #    ОСТАЛЬНЫХ букв под каналом остаётся 0.5-0.7 мм вместо 2.1
+    #    (ДИМА и АЛЕКСАНДР ломались именно так).
+    # Хвост Д и бревис Й просто торчат за полосу — это лишний материал,
+    # он ничему не мешает.
     body_y = []
     for ch, b in zip(text, bounds):
         if b is None:
             continue
         blo, bhi, _ = floating_parts(font, ch, mm)
         body_y.append((b[1] * mm, b[3] * mm) if blo is None else (blo, bhi))
-    y_lo = min(v[0] for v in body_y)
-    y_hi = max(v[1] for v in body_y)
+    y_lo = max(v[0] for v in body_y)
+    y_hi = min(v[1] for v in body_y)
 
     center = (ink_lo + ink_hi) / 2
     x_pos = [round(v - center, 4) for v in xs_mm]
@@ -307,20 +314,46 @@ def heights(n: int, body_h: float, up: float, down: float, mode: str):
     return [body_h + up if i % 2 == 0 else body_h - down for i in range(n)]
 
 
-def contour_boxes(glyphs, gname: str, mm: float) -> list[list[float]]:
-    """Габарит каждого отдельного контура глифа, в мм."""
+def glyph_contours(glyphs, gname: str, mm: float):
+    """
+    Контуры глифа как ломаные (кривые распрямлены), в мм.
+    Возвращает [(габарит [x0, y0, x1, y1], [точки]), ...].
+    """
     pen = RecordingPen()
     glyphs[gname].draw(pen)
-    boxes, cur = [], []
+    out, pts, prev = [], [], None
     for op, args in pen.value:
-        cur.append((op, args))
-        if op in ("closePath", "endPath"):
-            pts = [p for _, a in cur for p in a if isinstance(p, tuple)]
+        if op == "moveTo":
+            prev = args[0]
+            pts = [prev]
+        elif op == "lineTo":
+            prev = args[0]
+            pts.append(prev)
+        elif op in ("qCurveTo", "curveTo"):
+            ctrl = list(args)
+            # TrueType: цепочка квадратичных с неявными серединами
+            for i in range(len(ctrl) - 1):
+                c = ctrl[i]
+                nxt = ctrl[i + 1]
+                end = nxt if i + 2 == len(ctrl) else ((c[0] + nxt[0]) / 2, (c[1] + nxt[1]) / 2)
+                for k in range(1, 7):
+                    t = k / 6
+                    pts.append(((1 - t) ** 2 * prev[0] + 2 * (1 - t) * t * c[0] + t * t * end[0],
+                                (1 - t) ** 2 * prev[1] + 2 * (1 - t) * t * c[1] + t * t * end[1]))
+                prev = end
+        elif op in ("closePath", "endPath"):
             if pts:
-                boxes.append([min(p[0] for p in pts) * mm, min(p[1] for p in pts) * mm,
-                              max(p[0] for p in pts) * mm, max(p[1] for p in pts) * mm])
-            cur = []
-    return boxes
+                xs = [p[0] * mm for p in pts]
+                ys = [p[1] * mm for p in pts]
+                out.append(([min(xs), min(ys), max(xs), max(ys)],
+                            [(x, y) for x, y in zip(xs, ys)]))
+            pts = []
+    return out
+
+
+def contour_boxes(glyphs, gname: str, mm: float) -> list[list[float]]:
+    """Габарит каждого отдельного контура глифа, в мм."""
+    return [box for box, _ in glyph_contours(glyphs, gname, mm)]
 
 
 def floating_parts(font: TTFont, ch: str, mm: float):
@@ -331,9 +364,10 @@ def floating_parts(font: TTFont, ch: str, mm: float):
     диапазонов Y. Возвращает (низ тела, верх тела, [габариты висящих частей]);
     если висящих нет — (None, None, []).
     """
-    boxes = contour_boxes(font.getGlyphSet(), font.getBestCmap()[ord(ch)], mm)
-    if len(boxes) < 2:
+    contours = glyph_contours(font.getGlyphSet(), font.getBestCmap()[ord(ch)], mm)
+    if len(contours) < 2:
         return None, None, []
+    boxes = [c[0] for c in contours]
     body = [max(boxes, key=lambda b: (b[2] - b[0]) * (b[3] - b[1]))]
     rest = [b for b in boxes if b is not body[0]]
     grew = True
@@ -351,30 +385,101 @@ def floating_parts(font: TTFont, ch: str, mm: float):
     return min(b[1] for b in body), max(b[3] for b in body), rest
 
 
+def body_top_profile(font: TTFont, ch: str, mm: float, step: float = 0.25):
+    """
+    Верх тела буквы по X: {x_bin: max Y тела в этом столбце}. Нужен, чтобы
+    ставить перемычки под диакритикой туда, где под ней есть штрих, а не
+    пустота между штрихами.
+    """
+    contours = glyph_contours(font.getGlyphSet(), font.getBestCmap()[ord(ch)], mm)
+    _, _, floats = floating_parts(font, ch, mm)
+    float_ids = {id(b) for b in floats}
+    prof: dict[int, float] = {}
+    for box, pts in contours:
+        if any(box == fb for fb in floats):
+            continue
+        for x, y in pts:
+            k = int(round(x / step))
+            if y > prof.get(k, -1e9):
+                prof[k] = y
+    return prof
+
+
+def _profile(pts, step: float, top: bool) -> dict[int, float]:
+    """Огибающая ломаной по столбцам X: верх (top=True) или низ."""
+    prof: dict[int, float] = {}
+    for x, y in pts:
+        k = int(round(x / step))
+        if k not in prof or (y > prof[k] if top else y < prof[k]):
+            prof[k] = y
+    return prof
+
+
 def diacritic_bridges(text: str, font: TTFont, mm: float, width_frac: float = 0.6,
-                      min_width: float = 1.5, bite: float = 1.0) -> list[list]:
+                      min_width: float = 1.5, bite: float = 1.0,
+                      step: float = 0.25) -> list[list]:
     """
     Перемычки под «висящими» частями букв.
 
     Точки у Ё и бревис у Й — отдельные контуры глифа. После выдавливания они
     становятся самостоятельными столбиками: к букве не крепятся и на печати
-    просто остаются лежать на столе. Ищем такие контуры (транзитивно наращивая
-    «тело» буквы по пересечению диапазонов Y) и ставим под каждый прямоугольник,
-    сшивающий его с телом. Перемычка заходит в тело на `bite` мм — запас на
-    случай, если верх буквы под диакритикой ниже её самой высокой точки.
+    просто остаются лежать на столе.
+
+    Перемычку мало поставить под диакритикой — под ней должно быть ТЕЛО.
+    У Й бревис висит над просветом между двумя штрихами И, и перемычка по
+    центру цепляла их только уголками: связность формально была, держалось
+    на двух точках и отваливалось при снятии со стола. Поэтому ищем столбцы,
+    где тело доходит до своего верха (там штрих), и ставим перемычку на
+    каждый такой штрих под диакритикой. У Й их выходит две — по концам
+    бревиса, у Ё по одной под каждой точкой на перекладине Е.
+
+    Верх перемычки — по огибающей низа диакритики над ней (у бревиса низ
+    в середине ниже, чем по краям), низ — с заходом в штрих на `bite`.
 
     Возвращает [[индекс буквы, x0, y0, x1, y1], ...] в мм от начала буквы.
     """
+    glyphs = font.getGlyphSet()
+    cmap = font.getBestCmap()
     out = []
     for i, ch in enumerate(text):
-        _, top, rest = floating_parts(font, ch, mm)
+        _, top, floats = floating_parts(font, ch, mm)
         if top is None:
             continue
-        for b in rest:
-            w = max(min_width, (b[2] - b[0]) * width_frac)
-            cx = (b[0] + b[2]) / 2
-            out.append([i, round(cx - w / 2, 4), round(top - bite, 4),
-                        round(cx + w / 2, 4), round(b[1] + 0.05, 4)])
+        contours = glyph_contours(glyphs, cmap[ord(ch)], mm)
+        body_pts = [p for box, pts in contours if box not in floats for p in pts]
+        body_top = _profile(body_pts, step, top=True)
+
+        # штрихи: кластеры столбцов, где тело поднимается почти до верха
+        high = sorted(k for k, y in body_top.items() if y >= top - 1.5)
+        clusters: list[list[int]] = []
+        for k in high:
+            if clusters and k - clusters[-1][-1] <= 2:
+                clusters[-1].append(k)
+            else:
+                clusters.append([k])
+        strokes = [(c[0] * step - step / 2, c[-1] * step + step / 2) for c in clusters]
+
+        for box, pts in contours:
+            if box not in floats:
+                continue
+            fx0, fy0, fx1, _ = box
+            float_bot = _profile(pts, step, top=False)
+            hits = [(max(a, fx0 - 0.3), min(b, fx1 + 0.3)) for a, b in strokes
+                    if b >= fx0 - 0.3 and a <= fx1 + 0.3]
+            if not hits:
+                # под диакритикой ни один штрих не доходит до верха —
+                # опускаемся к тому телу, что есть под её серединой
+                hits = [((fx0 + fx1) / 2 - 0.5, (fx0 + fx1) / 2 + 0.5)]
+            for a, b in hits:
+                cx = (a + b) / 2
+                w = max(min_width, min(2.5, b - a))
+                x0, x1 = cx - w / 2, cx + w / 2
+                ks = [k for k in body_top if x0 - 0.3 <= k * step <= x1 + 0.3]
+                y_body = max(body_top[k] for k in ks) if ks else top
+                ks_f = [k for k in float_bot if x0 <= k * step <= x1]
+                y_float = max(float_bot[k] for k in ks_f) if ks_f else fy0
+                out.append([i, round(x0, 4), round(y_body - bite, 4),
+                            round(x1, 4), round(y_float + 0.3, 4)])
     return out
 
 
@@ -492,6 +597,41 @@ def pair_joint_ok(pair: str, factor: float, erode: float, args, openscad: Path,
         return bool(tris) and count_shells(tris) == 1
 
 
+def check_diacritics(text: str, args, openscad: Path, font: TTFont, family: str,
+                     upsize: float) -> list[str]:
+    """
+    Держится ли диакритика на перемычках: буква с перемычками после эрозии
+    на weld/2 должна остаться одним телом. Ровно этот тест поймал бы
+    бревис Й, висевший на уголках.
+    """
+    mm = args.size / upsize
+    bad = []
+    for ch in sorted(set(text)):
+        _, top, floats = floating_parts(font, ch, mm)
+        if top is None or args.no_bridges:
+            continue
+        parts = [f'text("{ch}", font="{family}", size={args.size}, '
+                 f'halign="left", valign="baseline");']
+        for b in diacritic_bridges(ch, font, mm, min_width=args.bridge_width):
+            parts.append(f'translate([{b[1]:.4f}, {b[2]:.4f}]) '
+                         f'square([{b[3]-b[1]:.4f}, {b[4]-b[2]:.4f}]);')
+        shape = (f"offset(r = -{args.weld / 2:.4f}) union() {{\n"
+                 + "\n".join(parts) + "\n}")
+        body = f"$fn={args.fit_fn};\nlinear_extrude(2) {shape}\n"
+        with tempfile.TemporaryDirectory(prefix="scaddia_") as tmp:
+            scad, stl = Path(tmp) / "d.scad", Path(tmp) / "d.stl"
+            scad.write_text(body, encoding="utf-8")
+            res = subprocess.run([str(openscad), "-o", str(stl), str(scad)],
+                                 capture_output=True)
+            ok = res.returncode == 0 and stl.exists()
+            if ok:
+                tris = read_stl(stl)
+                ok = bool(tris) and count_shells(tris) == 1
+        if not ok:
+            bad.append(ch)
+    return bad
+
+
 def largest_passing(test, lo: float, hi: float, steps: int = 6):
     """
     Наибольший множитель в [lo, hi], проходящий тест, или None.
@@ -594,6 +734,10 @@ def build_one(name: str, args, openscad: Path, font: TTFont, family: str,
 
     spacing = (fit_gaps(text, args, openscad, font, family, upsize)
                if args.auto_fit else args.spacing)
+    loose = check_diacritics(text, args, openscad, font, family, upsize)
+    if loose:
+        print(f"   ВНИМАНИЕ: диакритика у {', '.join(loose)} держится тоньше "
+              f"{args.weld} мм — отвалится при снятии со стола")
 
     scad_body, tris, body_span = render(text, spacing, args, openscad, font,
                                         family, upsize, args.fn)
