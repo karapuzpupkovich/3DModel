@@ -24,8 +24,15 @@ y_off    = {{YOFF}};      // сдвиг по Y: центрирует текст 
 // Перемычки под «висящими» частями глифов: точки у Ё, бревис у Й. Это
 // отдельные контуры, без перемычки они выдавливаются в самостоятельные
 // столбики и на печати остаются лежать на столе.
-// Формат: [[индекс буквы, x0, y0, x1, y1], ...] в мм от начала буквы.
+// Формат: [[индекс буквы, x0, y0, x1, y1, высота], ...] в мм от начала буквы.
 bridges  = {{BRIDGES}};
+
+// Основной способ крепить диакритику — не перемычки, а «посадка»: висящая
+// часть глифа срезается по линии y_cut и опускается на sink, пока её
+// кончики не врастут в тело буквы. Никаких посторонних прямоугольников:
+// бревис Й садится между верхушками штрихов И, точки Ё — на перекладину Е.
+// Формат: [[индекс буквы, y среза, на сколько опустить], ...].
+sinks    = {{SINKS}};
 
 /* [Геометрия] */
 font_name = {{FONT}};     // «nome_font», формат fontconfig: Семейство:style=...
@@ -39,17 +46,43 @@ bore_relief = {{RELIEF}}; // подъём конька над каналом, м
 text_fn = {{FN}};         // гладкость контуров букв
 hole_fn = 96;             // гладкость канала под карандаш
 
+module glyph(i) {
+    text(letters[i], font = font_name, size = text_size,
+         halign = "left", valign = "baseline", $fn = text_fn);
+}
+
+function sink_of(i) = [for (s = sinks) if (s[0] == i) s];
+
 module word_2d(idx) {
     for (i = idx) {
-        translate([x_pos[i], y_off])
-            text(letters[i], font = font_name, size = text_size,
-                 halign = "left", valign = "baseline", $fn = text_fn);
-
-        for (b = bridges)
-            if (b[0] == i)
-                translate([x_pos[i] + b[1], y_off + b[2]])
-                    square([b[3] - b[1], b[4] - b[2]]);
+        s = sink_of(i);
+        translate([x_pos[i], y_off]) {
+            if (len(s) == 0) {
+                glyph(i);
+            } else {
+                // тело — всё, что ниже среза
+                intersection() {
+                    glyph(i);
+                    translate([-500, -500]) square([1000, 500 + s[0][1]]);
+                }
+                // диакритика — всё, что выше среза, опущенное на sink
+                translate([0, -s[0][2]])
+                    intersection() {
+                        glyph(i);
+                        translate([-500, s[0][1]]) square([1000, 500]);
+                    }
+            }
+        }
     }
+}
+
+// Перемычки выдавливаются отдельно: у них своя высота (b[5]) — ниже
+// буквы, чтобы не торчали столбиками во весь рост.
+module bridges_3d() {
+    for (b = bridges)
+        translate([x_pos[b[0]] + b[1], y_off + b[2], 0])
+            linear_extrude(height = b[5])
+                square([b[3] - b[1], b[4] - b[2]]);
 }
 
 // Профиль канала в поперечнике: круг под карандаш плюс «конёк» — крыша
@@ -85,6 +118,7 @@ module pencil_name() {
             for (g = groups)
                 linear_extrude(height = g[0])
                     word_2d(g[1]);
+            bridges_3d();
         }
 
         bore();

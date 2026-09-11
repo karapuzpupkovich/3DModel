@@ -417,7 +417,7 @@ def _profile(pts, step: float, top: bool) -> dict[int, float]:
 
 def diacritic_bridges(text: str, font: TTFont, mm: float, width_frac: float = 0.6,
                       min_width: float = 1.5, bite: float = 1.0,
-                      step: float = 0.25) -> list[list]:
+                      step: float = 0.25, style: str = "strokes") -> list[list]:
     """
     Перемычки под «висящими» частями букв.
 
@@ -464,8 +464,15 @@ def diacritic_bridges(text: str, font: TTFont, mm: float, width_frac: float = 0.
                 continue
             fx0, fy0, fx1, _ = box
             float_bot = _profile(pts, step, top=False)
-            hits = [(max(a, fx0 - 0.3), min(b, fx1 + 0.3)) for a, b in strokes
-                    if b >= fx0 - 0.3 and a <= fx1 + 0.3]
+            if style == "center":
+                # одна перемычка по центру диакритики, вниз до того тела,
+                # что под ней есть (у Й — до диагонали И)
+                cx = (fx0 + fx1) / 2
+                w = max(min_width, (fx1 - fx0) * width_frac)
+                hits = [(cx - w / 2, cx + w / 2)]
+            else:
+                hits = [(max(a, fx0 - 0.3), min(b, fx1 + 0.3)) for a, b in strokes
+                        if b >= fx0 - 0.3 and a <= fx1 + 0.3]
             if not hits:
                 # под диакритикой ни один штрих не доходит до верха —
                 # опускаемся к тому телу, что есть под её серединой
@@ -610,9 +617,14 @@ def check_diacritics(text: str, args, openscad: Path, font: TTFont, family: str,
         _, top, floats = floating_parts(font, ch, mm)
         if top is None or args.no_bridges:
             continue
+        if args.bridge_style == "sink":
+            if diacritic_sink(ch, args, openscad, font, family, upsize) is None:
+                bad.append(ch)
+            continue
         parts = [f'text("{ch}", font="{family}", size={args.size}, '
                  f'halign="left", valign="baseline");']
-        for b in diacritic_bridges(ch, font, mm, min_width=args.bridge_width):
+        for b in diacritic_bridges(ch, font, mm, min_width=args.bridge_width,
+                                   style=args.bridge_style):
             parts.append(f'translate([{b[1]:.4f}, {b[2]:.4f}]) '
                          f'square([{b[3]-b[1]:.4f}, {b[4]-b[2]:.4f}]);')
         shape = (f"offset(r = -{args.weld / 2:.4f}) union() {{\n"
@@ -630,6 +642,58 @@ def check_diacritics(text: str, args, openscad: Path, font: TTFont, family: str,
         if not ok:
             bad.append(ch)
     return bad
+
+
+_SINK_CACHE: dict = {}
+NL = chr(10)   # перевод строки для сборки .scad
+
+
+def diacritic_sink(ch: str, args, openscad: Path, font: TTFont, family: str,
+                   upsize: float):
+    """
+    На сколько опустить диакритику, чтобы она вросла в тело буквы.
+
+    Режем глиф по середине зазора между телом и висящей частью, верхнюю
+    половину опускаем и проверяем эрозией на weld/2, что буква осталась
+    одним телом. Ищем наименьший спуск, который держит: у Ё точки садятся
+    на перекладину почти сразу, у Й кончики бревиса скруглённые и верхушки
+    штрихов тоже — им нужно уйти глубже, чтобы было за что зацепиться.
+
+    Возвращает (y среза, спуск) или None, если не держит и на максимуме.
+    """
+    mm = args.size / upsize
+    key = (ch, args.size, args.weld)
+    if key in _SINK_CACHE:
+        return _SINK_CACHE[key]
+    _, top, floats = floating_parts(font, ch, mm)
+    if top is None:
+        return None
+    gap = min(f[1] for f in floats) - top
+    cut = top + gap / 2
+    glyph = (f'text("{ch}", font="{family}", size={args.size}, '
+             f'halign="left", valign="baseline")')
+    result = None
+    for extra in (0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0):
+        sink = gap + extra
+        body = (f'intersection() {{ {glyph}; translate([-500, -500]) '
+                f'square([1000, {500 + cut:.4f}]); }}')
+        dia = (f'translate([0, {-sink:.4f}]) intersection() {{ {glyph}; '
+               f'translate([-500, {cut:.4f}]) square([1000, 500]); }}')
+        scad_src = (f"$fn={args.fit_fn};" + NL
+                    + f"linear_extrude(2) offset(r = -{args.weld / 2:.4f}) "
+                    + f"union() {{ {body} {dia} }}" + NL)
+        with tempfile.TemporaryDirectory(prefix="scadsink_") as tmp:
+            scad, stl = Path(tmp) / "s.scad", Path(tmp) / "s.stl"
+            scad.write_text(scad_src, encoding="utf-8")
+            res = subprocess.run([str(openscad), "-o", str(stl), str(scad)],
+                                 capture_output=True)
+            if res.returncode == 0 and stl.exists():
+                tris = read_stl(stl)
+                if tris and count_shells(tris) == 1:
+                    result = (round(cut, 4), round(sink, 4))
+                    break
+    _SINK_CACHE[key] = result
+    return result
 
 
 def largest_passing(test, lo: float, hi: float, steps: int = 6):
@@ -698,8 +762,19 @@ def render(text: str, spacing, args, openscad: Path, font: TTFont,
     """Собирает .scad под заданный spacing и возвращает (текст scad, треугольники)."""
     x_pos, y_off, _, body_span = layout(text, font, upsize, args.size, spacing)
     hs = heights(len(text), args.height, args.up, args.down, args.mode)
-    bridges = [] if args.no_bridges else diacritic_bridges(
-        text, font, args.size / upsize, min_width=args.bridge_width)
+    bridges, sinks = [], []
+    if not args.no_bridges:
+        if args.bridge_style == "sink":
+            for i, ch in enumerate(text):
+                r = diacritic_sink(ch, args, openscad, font, family, upsize)
+                if r is not None:
+                    sinks.append([i, r[0], r[1]])
+        else:
+            bridges = diacritic_bridges(text, font, args.size / upsize,
+                                        min_width=args.bridge_width,
+                                        style=args.bridge_style)
+            for b in bridges:
+                b.append(round(hs[b[0]] * args.bridge_height, 4))
 
     scad_body = TEMPLATE.read_text(encoding="utf-8")
     for token, value in {
@@ -707,6 +782,7 @@ def render(text: str, spacing, args, openscad: Path, font: TTFont,
         "{{XPOS}}": scad_literal(x_pos),
         "{{GROUPS}}": scad_literal(height_groups(hs)),
         "{{BRIDGES}}": scad_literal(bridges),
+        "{{SINKS}}": scad_literal(sinks),
         "{{YOFF}}": scad_literal(y_off),
         "{{FONT}}": scad_literal(family),
         "{{SIZE}}": scad_literal(args.size),
@@ -752,8 +828,15 @@ def build_one(name: str, args, openscad: Path, font: TTFont, family: str,
 
     lo, hi = bbox(tris)
     flag = "OK " if shells == 1 else "!! "
-    n_bridges = 0 if args.no_bridges else len(
-        diacritic_bridges(text, font, args.size / upsize, min_width=args.bridge_width))
+    if args.no_bridges:
+        n_bridges = 0
+    elif args.bridge_style == "sink":
+        n_bridges = sum(1 for ch in text
+                        if floating_parts(font, ch, args.size / upsize)[1] is not None)
+    else:
+        n_bridges = len(diacritic_bridges(text, font, args.size / upsize,
+                                          min_width=args.bridge_width,
+                                          style=args.bridge_style))
     tightest = min(spacing) if isinstance(spacing, list) and spacing else args.spacing
     print(
         f"{flag}{out_stl.name:<22} {hi[0]-lo[0]:6.2f} x {hi[1]-lo[1]:5.2f} x "
@@ -761,7 +844,7 @@ def build_one(name: str, args, openscad: Path, font: TTFont, family: str,
         f"шаг {args.spacing}/{tightest}   пол {floor_under_hole(args):.2f}"
         f" / свод {roof_over_hole(args):.2f}"
         f" / стенка {body_span / 2 - args.hole / 2:.2f} мм"
-        + (f"   перемычек {n_bridges}" if n_bridges else "")
+        + (f"   диакритик {n_bridges}" if n_bridges else "")
     )
     if shells > 1:
         print(
@@ -807,6 +890,12 @@ def main() -> None:
                     help="не подставлять перемычки под точки Ё и бревис Й")
     ap.add_argument("--bridge-width", type=float, default=1.5,
                     help="минимальная ширина перемычки под диакритикой, мм")
+    ap.add_argument("--bridge-height", type=float, default=0.5,
+                    help="высота перемычки как доля высоты буквы")
+    ap.add_argument("--bridge-style", choices=("sink", "strokes", "center"),
+                    default="sink",
+                    help="sink — опустить диакритику в тело буквы; strokes — перемычка "
+                         "на каждый штрих; center — одна перемычка по центру")
     ap.add_argument("--bore-relief", type=float, default=None,
                     help="конёк над каналом, мм (по умолчанию полный домик на 45°)")
     ap.add_argument("--bore-z", type=float, default=None,
