@@ -190,9 +190,15 @@ def build_plate(placements, sources: dict[str, Path], out: Path,
         cx, cy, cz = ((lo[0]+hi[0])/2, (lo[1]+hi[1])/2, (lo[2]+hi[2])/2)
         centered = [tuple((v[0]-cx, v[1]-cy, v[2]-cz) for v in t) for t in tris]
         verts, faces = weld(centered)
+        # Компонент только поднимает деталь на стол (z). По X/Y её центр
+        # остаётся в начале координат объекта — тогда элемент сборки ставит
+        # деталь ЦЕНТРОМ в точку раскладки. Раньше сюда шёл (cx, cy, cz), и
+        # деталь вставала в точку своим исходным нулём: для имён, сделанных
+        # вокруг нуля, это было незаметно, а кости, смоделированные в
+        # координатах собранного скелета, разносило друг на друга и за стол.
         meshes.append({"name": name, "mesh_id": idx, "obj_id": 1000 + idx,
                        "verts": verts, "faces": faces,
-                       "offset": (cx, cy, cz), "pos": (px, py)})
+                       "offset": (0.0, 0.0, cz), "pos": (px, py)})
 
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
         z.writestr("[Content_Types].xml", CONTENT_TYPES)

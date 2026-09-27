@@ -281,18 +281,22 @@ def build(stl: Path, out: Path, profile: dict, app_version: str) -> None:
 
     verts, faces = weld(centered)
     name = stl.stem
+    # Компонент поднимает деталь на стол, но по X/Y оставляет центр в нуле:
+    # тогда деталь встаёт ровно в центр стола, даже если STL смоделирован
+    # не вокруг начала координат (см. такой же случай в make_plate.py).
+    lift = (0.0, 0.0, cz)
 
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
         z.writestr("[Content_Types].xml", CONTENT_TYPES)
         z.writestr("_rels/.rels", ROOT_RELS)
-        z.writestr("3D/3dmodel.model", root_model_xml(name, (cx, cy, cz), app_version))
+        z.writestr("3D/3dmodel.model", root_model_xml(name, lift, app_version))
         z.writestr("3D/_rels/3dmodel.model.rels", MODEL_RELS)
         z.writestr("3D/Objects/object_1.model",
                    object_model_xml(verts, faces, str(uuid.uuid4())))
         z.writestr("Metadata/project_settings.config",
                    json.dumps(profile, ensure_ascii=False, indent=4))
         z.writestr("Metadata/model_settings.config",
-                   model_settings_xml(name, len(faces), (cx, cy, cz)))
+                   model_settings_xml(name, len(faces), lift))
         z.writestr("Metadata/slice_info.config", SLICE_INFO.format(version=app_version))
         z.writestr("Metadata/cut_information.xml", CUT_INFO)
         z.writestr("Metadata/filament_sequence.json",
