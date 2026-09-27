@@ -4,6 +4,7 @@
 
   превью скелета.jpg     — скелет на песке, как на образце
   превью табличек.jpg    — табличка и карта уже «закрашенные»
+  превью номерков.jpg    — номерки: собранные, один разобранный, цифры
   схема раскладки.jpg    — вид сверху с номерами деталей: как раскладывать
   диорама целиком.jpg    — коробка, песок, всё напечатанное и человечек
                            из желудей в натуральную величину: пропорции
@@ -24,11 +25,13 @@ from PIL import Image, ImageDraw, ImageFont
 HERE = Path(__file__).resolve().parent
 PROJECT = HERE.parent
 sys.path.insert(0, str(HERE))
+from build_markers import POCKET, T  # noqa: E402
 from build_skeleton import LAYOUT  # noqa: E402
 from raster import Camera, render, save  # noqa: E402
 
 SKEL = PROJECT / "Готовые модели" / "Скелет"
 PLAQ = PROJECT / "Готовые модели" / "Таблички"
+MARK = PROJECT / "Готовые модели" / "Номерки"
 IMG = PROJECT / "Готовые модели" / "Картинки"
 
 BONE = (0.93, 0.88, 0.76)
@@ -36,6 +39,8 @@ WOOD = (0.80, 0.62, 0.40)
 PAPER = (0.86, 0.76, 0.56)
 INK = (0.12, 0.08, 0.05)
 SAND = (0.78, 0.63, 0.44)
+YELLOW = (0.95, 0.87, 0.20)
+BLACK = (0.11, 0.11, 0.11)
 
 # Номера деталей на схеме — в порядке, в котором их удобно раскладывать
 ORDER = ["череп", "позвоночник с рёбрами", "хвост", "передняя лапа",
@@ -61,6 +66,45 @@ def obj(m, color, spec=0.15, smooth=True, paint=None):
 
 def skeleton_objs(dx=0.0, dy=0.0):
     return [obj(placed(n, dx, dy), BONE) for n in ORDER]
+
+
+def marker_objs(d, x, y, ang=0.0, pull=0.0, digit=True):
+    """
+    Номерок стоит спиной в точке (x, y), лицом к −Y (к зрителю). Модель
+    лежит «как печатается»: Y — вверх у стоящего, Z — вперёд, поэтому
+    поворот на 90° вокруг X её поднимает. Цифра вставлена в выемку;
+    pull — насколько она вынута вперёд (для картинки сборки).
+    """
+    tf = trimesh.transformations
+    M = (tf.translation_matrix((x, y, 0)) @ tf.rotation_matrix(math.radians(ang), (0, 0, 1))
+         @ tf.rotation_matrix(math.radians(90), (1, 0, 0)))
+    plaque = trimesh.load(MARK / f"номерок {d}.stl")
+    plaque.apply_transform(M)
+    out = [obj(plaque, YELLOW, 0.15, False)]
+    if digit:
+        dg = trimesh.load(MARK / f"цифра {d}.stl")
+        dg.apply_translation((0, 0, T - POCKET + pull))
+        dg.apply_transform(M)
+        out.append(obj(dg, BLACK, 0.35, False))
+    return out
+
+
+def loose_digit(d, x, y, ang=0.0):
+    """Цифра лежит на столе лицом вверх, читается от зрителя."""
+    dg = trimesh.load(MARK / f"цифра {d}.stl")
+    c = dg.bounds.mean(axis=0)
+    dg.apply_translation((-c[0], -c[1], 0))
+    dg.apply_transform(trimesh.transformations.rotation_matrix(math.radians(ang), (0, 0, 1)))
+    dg.apply_translation((x, y, 0))
+    return obj(dg, BLACK, 0.35, False)
+
+
+# Где стоят номерки в диораме: спина номерка, мм. Позади находок — там
+# номерок не заслоняет кости от камеры; спереди — с запасом, чтобы полоса
+# «тени видимости» за номерком (23 мм высоты при взгляде под 40°) не
+# доставала до лап.
+MARKER_SPOTS = {1: (12, 42), 2: (66, 33), 3: (110, 8), 4: (-12, 6), 5: (40, -66),
+                6: (76, -66), 7: (156, 14), 8: (-12, -36), 9: (100, -62)}
 
 
 # --------------------------------------------------------------------------- #
@@ -150,6 +194,20 @@ def scene_plaques():
     save(img, IMG / "превью табличек.jpg")
 
 
+def scene_markers():
+    """Три собранных номерка, один с вынутой цифрой и россыпь цифр."""
+    objs = []
+    for d, x in (("1", -46), ("2", -26), ("3", -6)):
+        objs += marker_objs(d, x, 0)
+    objs += marker_objs("8", 20, 0, pull=13)          # выемка и цифра перед ней
+    objs.append(loose_digit("4", 44, -30, 12))
+    objs.append(loose_digit("7", 58, -18, -18))
+    objs.append(loose_digit("6", 40, -10, -6))
+    img = render(objs, Camera((4, -8, 7), 175, 27, -66, 30, 1500, 900),
+                 ground={"z": 0, "color": (0.62, 0.59, 0.55)}, ss=2, shadow_res=0.1)
+    save(img, IMG / "превью номерков.jpg")
+
+
 # Куда вынести номер детали на схеме: точка на детали и сдвиг кружка, мм.
 # Кружок не должен закрывать саму кость — особенно мелкие находки.
 LABELS = {
@@ -233,6 +291,8 @@ def scene_diorama():
     objs.append(obj(mp, PAPER, 0.1, False, {"z_below": 2.3, "color": INK}))
     objs += acorn_man(140, 42)
     objs += stones([(-35, -70, 9), (178, 60, 11), (-40, 20, 7), (185, -80, 8), (100, 70, 6)])
+    for d, (x, y) in MARKER_SPOTS.items():
+        objs += marker_objs(str(d), x, y)
     cam = Camera((70, -5, 20), 430, 40, -92, 34, 1600, 1000)
     img = render(objs, cam, ground={"z": 0, "color": SAND, "rect": (x0, x1, y0, y1)},
                  ss=2, shadow_res=0.35, bg=(0.90, 0.86, 0.80))
@@ -243,7 +303,8 @@ if __name__ == "__main__":
     IMG.mkdir(parents=True, exist_ok=True)
     only = sys.argv[1:]
     for name, fn in (("skeleton", scene_skeleton), ("plaques", scene_plaques),
-                     ("layout", scene_layout), ("diorama", scene_diorama)):
+                     ("markers", scene_markers), ("layout", scene_layout),
+                     ("diorama", scene_diorama)):
         if not only or name in only:
             fn()
             print("готово:", name)
